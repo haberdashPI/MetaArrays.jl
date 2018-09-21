@@ -6,14 +6,14 @@ using Requires
 function __init__()
   @require AxisArrays="39de3d68-74b9-583c-8d2d-e117c070f3a9" begin
     AxisArrays.axisdim(x::MetaArray{<:AxisArray},ax) =
-      axisdim(x.data,ax)
+      axisdim(getdata(x),ax)
     AxisArrays.axes(x::MetaArray{<:AxisArray},i::Int...) =
-      AxisArrays.axes(x.data,i...)
+      AxisArrays.axes(getdata(x),i...)
     AxisArrays.axes(x::MetaArray{<:AxisArray},T::Type{<:Axis}...) =
-      AxisArrays.axes(x.data,T...)
-    AxisArrays.axes(x::MetaArray{<:AxisArray}) = AxisArrays.axes(x.data)
-    AxisArrays.axisnames(x::MetaArray{<:AxisArray}) = axisnames(x.data)
-    AxisArrays.axisvalues(x::MetaArray{<:AxisArray}) = axisvalues(x.data)
+      AxisArrays.axes(getdata(x),T...)
+    AxisArrays.axes(x::MetaArray{<:AxisArray}) = AxisArrays.axes(getdata(x))
+    AxisArrays.axisnames(x::MetaArray{<:AxisArray}) = axisnames(getdata(x))
+    AxisArrays.axisvalues(x::MetaArray{<:AxisArray}) = axisvalues(getdata(x))
   end
 end
 
@@ -27,9 +27,13 @@ function MetaArray(meta::M,data::A) where
 
   MetaArray{A,M,T,N}(meta,data)
 end
-
-meta(meta::NamedTuple,data::AbstractArray) = MetaArray(meta,data)
 meta(data::AbstractArray;meta...) = MetaArray(meta.data,data)
+Base.getproperty(x::MetaArray,name::Symbol) = getproperty(getmeta(x),name)
+getdata(x::MetaArray) = Base.getfield(x,:data)
+getmeta(x::MetaArray) = Base.getfield(x,:meta)
+function meta(data::MetaArray;meta...)
+  MetaArray(getdata(data),merge(getmeta(data),meta)...)
+end
 
 struct UnknownMerge{A,B} end
 metamerge(x::NamedTuple,y::NamedTuple) = merge(x,y)
@@ -64,34 +68,34 @@ struct NoMetaData end
 combine(x,::NoMetaData) = x
 
 # match array behavior of wrapped array (maintaining the metdata)
-Base.size(x::MetaArray) = size(x.data)
-Base.axes(x::MetaArray) = Base.axes(x.data)
-Base.IndexStyle(x::MetaArray) = IndexStyle(x.data)
+Base.size(x::MetaArray) = size(getdata(x))
+Base.axes(x::MetaArray) = Base.axes(getdata(x))
+Base.IndexStyle(x::MetaArray) = IndexStyle(getdata(x))
 @inline @Base.propagate_inbounds Base.getindex(x::MetaArray,i::Int...) =
-  getindex(x.data,i...)
+getindex(getdata(x),i...)
 @inline @Base.propagate_inbounds Base.getindex(x::MetaArray,i...) =
-  metawrap(x,getindex(x.data,i...))
+metawrap(x,getindex(getdata(x),i...))
 @inline @Base.propagate_inbounds Base.setindex!(x::MetaArray{<:Any,<:Any,T},v,i...) where T =
-  setindex!(x.data,v,i...)
+setindex!(getdata(x),v,i...)
 @inline @Base.propagate_inbounds function Base.setindex!(x::MetaArray{<:Any,<:Any,T}, v::T,i::Int...) where T
-  setindex!(x.data,v,i...)
+  setindex!(getdata(x),v,i...)
 end
 function Base.similar(x::MetaArray,::Type{S},dims::NTuple{<:Any,Int}) where S
-  meta(x.meta,similar(x.data,S,dims))
+  MetaArray(getmeta(x),similar(getdata(x),S,dims))
 end
 
 metawrap(x::MetaArray{<:Any,<:Any,T},val::T) where T = val
 keepmeta(x::MetaArray,dims) = true
 function metawrap(x::MetaArray,val::AbstractArray) 
-  keepmeta(x,val) ? MetaArray(x.meta,val) : val
+  keepmeta(x,val) ? MetaArray(getmeta(x),val) : val
 end
 metawrap(x::MetaArray,val::MetaArray) = val
 metawrap(x::MetaArray,val) = error("Unexpected result type $(typeof(val)).")
 
 # maintain stridedness of wrapped array, if present
-Base.strides(x::MetaArray) = strides(x.data)
-Base.unsafe_convert(T::Type{<:Ptr},x::MetaArray) = unsafe_convert(T,x.data)
-Base.stride(x::MetaArray,i::Int) = stride(x.data,i)
+Base.strides(x::MetaArray) = strides(getdata(x))
+Base.unsafe_convert(T::Type{<:Ptr},x::MetaArray) = unsafe_convert(T,getdata(x))
+Base.stride(x::MetaArray,i::Int) = stride(getdata(x),i)
 
 # the meta array braodcast style should retain the nested style information for
 # whatever array type the meta array wraps
@@ -112,18 +116,18 @@ end
 # of the meta-arrays
 find_meta_style(bc::Broadcast.Broadcasted) = find_ms_helper(bc,bc.args...)
 find_meta_style(x) = NoMetaData(), x
-find_meta_style(x::MetaArray) = x.meta, x.data
+find_meta_style(x::MetaArray) = getmeta(x), getdata(x)
 
 find_ms_helper(bc::Broadcast.Broadcasted,x::MetaArray) =
-  x.meta, Broadcast.broadcasted(bc.f,x.data)
+getmeta(x), Broadcast.broadcasted(bc.f,getdata(x))
 find_ms_helper(bc::Broadcast.Broadcasted,x) = NoMetaData(), bc
 function find_ms_helper(bc::Broadcast.Broadcasted,x::MetaArray,rest)
   meta, broadcasted = find_meta_style(rest)
-  combine(x.meta,meta), Broadcast.broadcasted(bc.f,x.data,broadcasted)
+  combine(getmeta(x),meta), Broadcast.broadcasted(bc.f,getdata(x),broadcasted)
 end
 function find_ms_helper(bc::Broadcast.Broadcasted,x,rest)
   meta, broadcasted = find_meta_style(rest)
-  meta, Broadcast.broadcasted(bc.f,x.data,broadcasted)
+  meta, Broadcast.broadcasted(bc.f,getdata(x),broadcasted)
 end
 
 # the wrapped arrays may define custom machinery for broadcasting:
@@ -140,7 +144,7 @@ function Base.copyto!(dest::AbstractArray,
 end
 
 function Base.copyto!(dest::MetaArray, bc::Broadcast.Broadcasted{Nothing})
-  copyto!(dest.data,bc)
+  copyto!(getdata(dest),bc)
 end
 
 function Base.copy(bc::Broadcast.Broadcasted{MetaArrayStyle{A}}) where A
