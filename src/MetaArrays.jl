@@ -17,26 +17,51 @@ function __init__()
   end
 end
 
-struct MetaArray{M,A,T,N} <: AbstractArray{T,N}
+struct MetaArray{A,M<:NamedTuple,T,N} <: AbstractArray{T,N}
   meta::M
   data::A
 end
 
-function MetaArray(meta::M,data::A) where {M,T,N,A<:AbstractArray{T,N}}
-  MetaArray{M,A,T,N}(meta,data)
+function MetaArray(meta::M,data::A) where 
+  {M<:NamedTuple,T,N,A<:AbstractArray{T,N}}
+
+  MetaArray{A,M,T,N}(meta,data)
 end
 
-meta(meta,data) = MetaArray(meta,data)
-meta(data;meta...) = MetaArray(meta.data,data)
+meta(meta::NamedTuple,data::AbstractArray) = MetaArray(meta,data)
+meta(data::AbstractArray;meta...) = MetaArray(meta.data,data)
 
+struct UnknownMerge{A,B} end
 metamerge(x::NamedTuple,y::NamedTuple) = merge(x,y)
 metamerge(x::AbstractDict,y::AbstractDict) = merge(x,y)
-function metamerge(x,y) 
-  error("There is no known way to merge metadata of type $(typeof(x)) ",
-        "and type $(typeof(y)).")
+function metamerge(x::A,y::B) where {A,B} 
+  x === y ? y : UnknownMerge{A,B}()
 end
+
+function checkmerge(k,v::UnknownMerge{A,B}) where {A,B}
+  error("The field `$k` has non-identical values across metadata ",
+        "and there is no known way to merge an object of type $A with an",
+        " object of type $B. You can fix this by defining ",
+        "`MetaArrays.metamerge` for these types.")
+end
+checkmerge(k,v) = nothing
+
+# TOOD: file an issue with julia about mis-behavior of `merge`.
+function combine(x::NamedTuple,y::NamedTuple) 
+  result = combine_(x,iterate(pairs(x)),y)
+  for (k,v) in pairs(result); checkmerge(k,v); end
+
+  result
+end
+combine_(x,::Nothing,result) = result
+function combine_(x,((key,val),state),result)
+  newval = haskey(result,key) ? metamerge(val,result[key]) : val
+  entry = NamedTuple{(key,)}((newval,))
+  combine_(x,iterate(x,state),merge(result,entry))
+end
+
 struct NoMetaData end
-metamerge(x,::NoMetaData) = x
+combine(x,::NoMetaData) = x
 
 # match array behavior of wrapped array (maintaining the metdata)
 Base.size(x::MetaArray) = size(x.data)
@@ -46,10 +71,9 @@ Base.IndexStyle(x::MetaArray) = IndexStyle(x.data)
   getindex(x.data,i...)
 @inline @Base.propagate_inbounds Base.getindex(x::MetaArray,i...) =
   metawrap(x,getindex(x.data,i...))
-@inline @Base.propagate_inbounds Base.setindex!(x::MetaArray,v,i...) =
+@inline @Base.propagate_inbounds Base.setindex!(x::MetaArray{<:Any,<:Any,T},v,i...) where T =
   setindex!(x.data,v,i...)
-@inline @Base.propagate_inbounds function Base.setindex!(x::MetaArray{T}, v::T,
-                                                         i::Int...) where T
+@inline @Base.propagate_inbounds function Base.setindex!(x::MetaArray{<:Any,<:Any,T}, v::T,i::Int...) where T
   setindex!(x.data,v,i...)
 end
 function Base.similar(x::MetaArray,::Type{S},dims::NTuple{<:Any,Int}) where S
@@ -71,11 +95,9 @@ Base.stride(x::MetaArray,i::Int) = stride(x.data,i)
 
 # the meta array braodcast style should retain the nested style information for
 # whatever array type the meta array wraps
-struct MetaArrayStyle{S} <: Broadcast.BroadcastStyle 
-  s::Type{S}
-end
-MetaArrayStyle(s::S) where S <: Broadcast.BroadcastStyle = MetaArrayStyle{S}(S)
-Base.Broadcast.BroadcastStyle(::Type{<:MetaArray{<:Any,A}}) where A = 
+struct MetaArrayStyle{S} <: Broadcast.BroadcastStyle end
+MetaArrayStyle(s::S) where S <: Broadcast.BroadcastStyle = MetaArrayStyle{S}()
+Base.Broadcast.BroadcastStyle(::Type{<:MetaArray{A}}) where A = 
   MetaArrayStyle(Broadcast.BroadcastStyle(A))
 Base.Broadcast.BroadcastStyle(a::MetaArrayStyle{A},b::MetaArrayStyle{B}) where {A,B} =
   MetaArrayStyle(BradcastStyle(A(),B()))
@@ -97,7 +119,7 @@ find_ms_helper(bc::Broadcast.Broadcasted,x::MetaArray) =
 find_ms_helper(bc::Broadcast.Broadcasted,x) = NoMetaData(), bc
 function find_ms_helper(bc::Broadcast.Broadcasted,x::MetaArray,rest)
   meta, broadcasted = find_meta_style(rest)
-  metamerge(x.meta,meta), Broadcast.broadcasted(bc.f,x.data,broadcasted)
+  combine(x.meta,meta), Broadcast.broadcasted(bc.f,x.data,broadcasted)
 end
 function find_ms_helper(bc::Broadcast.Broadcasted,x,rest)
   meta, broadcasted = find_meta_style(rest)
@@ -109,8 +131,8 @@ end
 # same broadcast implementation the wrapped arrays would use to
 # find the resulting data
 
-# note: in-place broadcast cannot extract the meta data
-# since we have to assume the metadata could be immutable.
+# note: in-place broadcast cannot extract the meta data since the metadata
+# fields are immutable.
 function Base.copyto!(dest::AbstractArray, 
                       bc::Broadcast.Broadcasted{MetaArrayStyle{A}}) where A
   _, broadcasted = find_meta_style(bc)
