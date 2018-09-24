@@ -50,7 +50,7 @@ MetaArrays is aware of `AxisArrays` and the wrapped meta arrays
 implement the same set of methods as other `AxisArray` objects, and
 will preserve axes across broadcasting.
 
-# Custom meta-data type
+# Custom metadata types
 
 Sometimes it is useful to dispatch on the type of the metadata.  To make this
 possible, you can provide a custom type as metadata rather than fields of a
