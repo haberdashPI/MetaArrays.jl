@@ -46,9 +46,9 @@ for any issues while merging identical fields.
 
 # AxisArrays
 
-MetaArrays is aware of `AxisArrays` and the wrapped meta arrays
-implement the same set of methods as other `AxisArray` objects, and
-will preserve axes across broadcasting.
+MetaArrays is aware of `AxisArrays` and the wrapped meta arrays implement the
+same set of methods as other `AxisArray` objects, and will preserve axes across
+broadcasting.
 
 # Custom metadata types
 
