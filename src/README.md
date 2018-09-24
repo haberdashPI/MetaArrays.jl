@@ -40,8 +40,9 @@ as `merge`.
 You can define your own `metamerge` methods to enable merging of other types. 
 
 If you wish to leverage this merging facility in your own methods of `MetaArray`
-values you can call `MetaArrays.combine` which takes two named tuples containing
-the to-be-merged metadata and combines them into a single named tuple.
+values you can call `MetaArrays.combine` which takes two metadata objects and
+combines them into a single object using `metamerge`, while checking
+for any issues while merging identical fields.
 
 # AxisArrays
 
