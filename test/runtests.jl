@@ -60,4 +60,15 @@ MetaArrays.metamerge(x::TestMerge,y::TestMerge) = TestMerge(x.val + y.val)
     @test (.-x) isa MetaArray{<:AbstractRange}
     @test .-x == [-xi for xi in x]
   end
+
+  @testset "MetaArray allows custom metadata type" begin
+    x = MetaArray(TestMerge(2),1:10)
+    y = MetaArray(TestMerge(3),1:10)
+
+    z = x.+y
+    @test x == 1:10
+    @test (x.+y) == ((1:10) .+ (1:10))
+    @test (x.+y).val == 5
+  end
+
 end

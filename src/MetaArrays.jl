@@ -17,14 +17,12 @@ function __init__()
   end
 end
 
-struct MetaArray{A,M<:NamedTuple,T,N} <: AbstractArray{T,N}
+struct MetaArray{A,M,T,N} <: AbstractArray{T,N}
   meta::M
   data::A
 end
 
-function MetaArray(meta::M,data::A) where 
-  {M<:NamedTuple,T,N,A<:AbstractArray{T,N}}
-
+function MetaArray(meta::M,data::A) where {M,T,N,A<:AbstractArray{T,N}}
   MetaArray{A,M,T,N}(meta,data)
 end
 meta(data::AbstractArray;meta...) = MetaArray(meta.data,data)
@@ -38,7 +36,7 @@ end
 struct UnknownMerge{A,B} end
 metamerge(x::NamedTuple,y::NamedTuple) = merge(x,y)
 metamerge(x::AbstractDict,y::AbstractDict) = merge(x,y)
-function metamerge(x::A,y::B) where {A,B} 
+function metamerge(x::A,y::B) where {A,B}
   x === y ? y : UnknownMerge{A,B}()
 end
 
@@ -51,7 +49,8 @@ end
 checkmerge(k,v) = nothing
 
 # TOOD: file an issue with julia about mis-behavior of `merge`.
-function combine(x::NamedTuple,y::NamedTuple) 
+combine(x,y) = metamerge(x,y)
+function combine(x::NamedTuple,y::NamedTuple)
   result = combine_(x,iterate(pairs(x)),y)
   for (k,v) in pairs(result); checkmerge(k,v); end
 
@@ -86,7 +85,7 @@ end
 
 metawrap(x::MetaArray{<:Any,<:Any,T},val::T) where T = val
 keepmeta(x::MetaArray,dims) = true
-function metawrap(x::MetaArray,val::AbstractArray) 
+function metawrap(x::MetaArray,val::AbstractArray)
   keepmeta(x,val) ? MetaArray(getmeta(x),val) : val
 end
 metawrap(x::MetaArray,val::MetaArray) = val
@@ -101,11 +100,11 @@ Base.stride(x::MetaArray,i::Int) = stride(getdata(x),i)
 # whatever array type the meta array wraps
 struct MetaArrayStyle{S} <: Broadcast.BroadcastStyle end
 MetaArrayStyle(s::S) where S <: Broadcast.BroadcastStyle = MetaArrayStyle{S}()
-Base.Broadcast.BroadcastStyle(::Type{<:MetaArray{A}}) where A = 
+Base.Broadcast.BroadcastStyle(::Type{<:MetaArray{A}}) where A =
   MetaArrayStyle(Broadcast.BroadcastStyle(A))
 Base.Broadcast.BroadcastStyle(a::MetaArrayStyle{A},b::MetaArrayStyle{B}) where {A,B} =
   MetaArrayStyle(BradcastStyle(A(),B()))
-function Base.Broadcast.BroadcastStyle(a::MetaArrayStyle{A},b::B) where 
+function Base.Broadcast.BroadcastStyle(a::MetaArrayStyle{A},b::B) where
   {A,B<:Broadcast.BroadcastStyle}
 
   MetaArrayStyle(Broadcast.BroadcastStyle(A(),b))
@@ -137,7 +136,7 @@ end
 
 # note: in-place broadcast cannot extract the meta data since the metadata
 # fields are immutable.
-function Base.copyto!(dest::AbstractArray, 
+function Base.copyto!(dest::AbstractArray,
                       bc::Broadcast.Broadcasted{MetaArrayStyle{A}}) where A
   _, broadcasted = find_meta_style(bc)
   copyto!(dest, broadcasted)
@@ -149,7 +148,7 @@ end
 
 function Base.copy(bc::Broadcast.Broadcasted{MetaArrayStyle{A}}) where A
   meta, broadcasted = find_meta_style(bc)
-  MetaArray(meta, copy(broadcasted))  
+  MetaArray(meta, copy(broadcasted))
 end
 
 end # module

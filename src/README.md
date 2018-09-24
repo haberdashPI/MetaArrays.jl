@@ -1,11 +1,11 @@
 # MetaArrays
 
-A `MetaArray` stores extra data as a named tuple along with an array. It
-otherwise behaves much as the stored array. 
+A `MetaArray` stores extra data as a named tuple along with an array, which can
+be accessed as fields of the array object. It otherwise behaves much as the
+stored array. 
 
 You create a meta array by calling `meta` with the specified metadata as keyword
-arguments; any operations over the array will preserve the metadata, and
-the metadata can be accessed as fields of the object.
+arguments; any operations over the array will preserve the metadata.
 
 For example:
 
@@ -49,3 +49,24 @@ for any issues while merging identical fields.
 MetaArrays is aware of `AxisArrays` and the wrapped meta arrays
 implement the same set of methods as other `AxisArray` objects, and
 will preserve axes across broadcasting.
+
+# Custom meta-data type
+
+Sometimes it is useful to dispatch on the type of the metadata.  To make this
+possible, you can provide a custom type as metadata rather than fields of a
+named tuple.  This can be done by passing your custom object `meta` to
+`MetaData(meta,data)`. For metadata to appropriately merge you will need to
+define `mergemeta` for this type. Just as with named tuples, the fields of the
+custom type can be accessed directly from the metarray.
+
+Once your custom type is defined you can dispatch on the second type parameter
+of the MetaArray, like so:
+
+```julia
+struct MyCustomMetadata
+  val::String
+end 
+
+foo(x::MetaArray{<:Any,MyCustomMetadata}) = x.val
+x = MetaArray(MyCustomMetadata("Hello, World"),1:10)
+println(foo(x))
