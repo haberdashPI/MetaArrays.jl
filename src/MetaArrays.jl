@@ -5,6 +5,7 @@ using Requires
 
 function __init__()
   @require AxisArrays="39de3d68-74b9-583c-8d2d-e117c070f3a9" begin
+    using .AxisArrays
     AxisArrays.axisdim(x::MetaArray{<:AxisArray},ax) =
       axisdim(getdata(x),ax)
     AxisArrays.axes(x::MetaArray{<:AxisArray},i::Int...) =
