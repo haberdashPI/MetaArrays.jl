@@ -26,12 +26,20 @@ end
 function MetaArray(meta::M,data::A) where {M,T,N,A<:AbstractArray{T,N}}
   MetaArray{A,M,T,N}(meta,data)
 end
+function MetaArray(meta::M,data::MetaArray) where M
+  MetaArray(combine(meta,getmeta(data)),getdata(data))
+end
 meta(data::AbstractArray;meta...) = MetaArray(meta.data,data)
 Base.getproperty(x::MetaArray,name::Symbol) = getproperty(getmeta(x),name)
 getdata(x::MetaArray) = Base.getfield(x,:data)
 getmeta(x::MetaArray) = Base.getfield(x,:meta)
 function meta(data::MetaArray;meta...)
   MetaArray(getdata(data),merge(getmeta(data),meta)...)
+end
+
+function Base.show(io::IO,::MIME"text/plain",x::MetaArray) where M
+  print(io,"MetaArray of ")
+  show(io, "text/plain", getdata(x))
 end
 
 struct UnknownMerge{A,B} end
@@ -66,6 +74,7 @@ end
 
 struct NoMetaData end
 combine(x,::NoMetaData) = x
+MetaArray(meta::NoMetaData,data::AbstractArray) = error("Unexpected missing meta data")
 
 # match array behavior of wrapped array (maintaining the metdata)
 Base.size(x::MetaArray) = size(getdata(x))
@@ -97,7 +106,7 @@ Base.strides(x::MetaArray) = strides(getdata(x))
 Base.unsafe_convert(T::Type{<:Ptr},x::MetaArray) = unsafe_convert(T,getdata(x))
 Base.stride(x::MetaArray,i::Int) = stride(getdata(x),i)
 
-# the meta array braodcast style should retain the nested style information for
+# the meta array broadcast style should retain the nested style information for
 # whatever array type the meta array wraps
 struct MetaArrayStyle{S} <: Broadcast.BroadcastStyle end
 MetaArrayStyle(s::S) where S <: Broadcast.BroadcastStyle = MetaArrayStyle{S}()
@@ -115,41 +124,96 @@ end
 # arguments, and the broadcasted object that would be created by wrapped arrays
 # of the meta-arrays
 find_meta_style(bc::Broadcast.Broadcasted) = find_ms_helper(bc,bc.args...)
-find_meta_style(x) = NoMetaData(), x
-find_meta_style(x::MetaArray) = getmeta(x), getdata(x)
+find_meta_style(x) = (NoMetaData(), x)
+find_meta_style(x::MetaArray) = (getmeta(x), getdata(x))
 
-find_ms_helper(bc::Broadcast.Broadcasted,x::MetaArray) =
-getmeta(x), Broadcast.broadcasted(bc.f,getdata(x))
-find_ms_helper(bc::Broadcast.Broadcasted,x) = NoMetaData(), bc
-function find_ms_helper(bc::Broadcast.Broadcasted,x::MetaArray,rest)
-  meta, broadcasted = find_meta_style(rest)
-  combine(getmeta(x),meta), Broadcast.broadcasted(bc.f,getdata(x),broadcasted)
+find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},x) where A =
+  NoMetaData(), Broadcast.Broadcasted{A}(bc.f, (x,), bc.axes)
+function find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},
+                        x::MetaArray) where A
+  getmeta(x), Broadcast.Broadcasted{A}(bc.f,(getdata(x),),bc.axes)
 end
-function find_ms_helper(bc::Broadcast.Broadcasted,x,rest)
-  meta, broadcasted = find_meta_style(rest)
-  meta, Broadcast.broadcasted(bc.f,getdata(x),broadcasted)
+function find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},
+                        x::MetaArray,rest) where A
+  meta, bc_ = find_meta_style(rest)
+  combine(getmeta(x),meta),
+    Broadcast.Broadcasted{A}(bc.f, (getdata(x), bc_), bc.axes)
+end
+function find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},
+                        x,rest) where A
+  meta, bc_ = find_meta_style(rest)
+  meta, Broadcast.Broadcasted{A}(bc.f, (x, bc_), bc.axes)
 end
 
-# the wrapped arrays may define custom machinery for broadcasting:
-# for in-place and out-of-place broadcasting extract the meta-data and use the
-# same broadcast implementation the wrapped arrays would use to
-# find the resulting data
+################################################################################
+# custom broadcast overloading
+#
+# the wrapped arrays may define custom machinery for broadcasting: therefore, we
+# must override each method that can be used to customize broadcasting
+#
+function meta_broadcasted(metas, bc::Broadcast.Broadcasted{S}) where S
+  args = meta_.(metas,bc.args)
+  Broadcast.Broadcasted{MetaArrayStyle{S}}(bc.f, args, bc.axes)
+end
+meta_broadcasted(metas, result) = MetaArray(reduce(combine,metas), result)
 
-# note: in-place broadcast cannot extract the meta data since the metadata
-# fields are immutable.
+meta_(::NoMetaData,x) = x
+meta_(meta,x) = MetaArray(meta,x)
+getdata_(x) = x
+getdata_(x::MetaArray) = getdata(x)
+getmeta_(x) = NoMetaData()
+getmeta_(x::MetaArray) = getmeta(x)
+
+# broadcasted:
+function Base.Broadcast.broadcasted(::MetaArrayStyle{S}, f, xs...) where S
+  bc = Broadcast.broadcasted(S(),f,getdata_.(xs)...)
+  meta_broadcasted(getmeta_.(xs), bc)
+end
+
+# instantiate:
+# after instantiation, the broadcasted object is flattened and the
+# argument contains all meteadata
+function Base.Broadcast.instantiate(bc::Broadcast.Broadcasted{M}) where
+  {S,M <: MetaArrayStyle{S}}
+
+  # simplify
+  bc_ = Broadcast.flatten(bc)
+  # instantiate the nested broadcast (that the meta array wraps)
+  bc_nested = Broadcast.Broadcasted{S}(bc_.f, getdata_.(bc_.args))
+  inst = Broadcast.instantiate(bc_nested)
+  # extract and combine the meta data
+  meta = reduce(combine,getmeta_.(bc_.args))
+  # place the meta data on the first argument
+  args = (MetaArray(meta,inst.args[1]), Base.tail(inst.args)...)
+  # return the instantiated metadata broadcasting
+  Broadcast.Broadcasted{M}(bc_.f, args, bc_.axes)
+end
+
+# similar:
+function Base.similar(bc::Broadcast.Broadcasted{<:MetaArrayStyle{<:Any}},
+                      ::Type{T}) where T
+  # because the axes have been instantiated, we can safely assume the first
+  # argument contains the meta data
+  MetaArray(getmeta(bc.args[1]), similar(broadcasted, T))
+end
+
+# copyto!:
 function Base.copyto!(dest::AbstractArray,
-                      bc::Broadcast.Broadcasted{MetaArrayStyle{A}}) where A
-  _, broadcasted = find_meta_style(bc)
-  copyto!(dest, broadcasted)
+                      bc::Broadcast.Broadcasted{<:MetaArrayStyle{S}}) where S
+  bc_ = Broadcast.Broadcasted{S}(bc.f, getdata_.(bc.args), bc.axes)
+  copyto!(dest,bc_)
 end
 
 function Base.copyto!(dest::MetaArray, bc::Broadcast.Broadcasted{Nothing})
   copyto!(getdata(dest),bc)
 end
 
-function Base.copy(bc::Broadcast.Broadcasted{MetaArrayStyle{A}}) where A
-  meta, broadcasted = find_meta_style(bc)
-  MetaArray(meta, copy(broadcasted))
+# copy:
+function Base.copy(bc::Broadcast.Broadcasted{<:MetaArrayStyle{S}}) where S
+  # because the axes have been instantiated, we can safely assume the first
+  # argument contains the meta data
+  bc_ = Broadcast.Broadcasted{S}(bc.f, getdata_.(bc.args), bc.axes)
+  MetaArray(getmeta(bc.args[1]), copy(bc_))
 end
 
 end # module
