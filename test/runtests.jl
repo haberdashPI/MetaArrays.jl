@@ -17,6 +17,7 @@ MetaArrays.metamerge(x::TestMerge,y::TestMerge) = TestMerge(x.val + y.val)
     x = meta(data,val=1)
     y = meta(collect(1:10),val=1)
 
+    @test (x.^2) == (1:10).^2
     @test x[1] == data[1]
     @test size(x) == size(data)
     @test similar(x) isa MetaArray

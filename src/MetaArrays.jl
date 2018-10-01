@@ -46,7 +46,7 @@ struct UnknownMerge{A,B} end
 metamerge(x::NamedTuple,y::NamedTuple) = merge(x,y)
 metamerge(x::AbstractDict,y::AbstractDict) = merge(x,y)
 function metamerge(x::A,y::B) where {A,B}
-  x === y ? y : UnknownMerge{A,B}()
+  x == y ? y : UnknownMerge{A,B}()
 end
 
 function checkmerge(k,v::UnknownMerge{A,B}) where {A,B}
@@ -74,6 +74,8 @@ end
 
 struct NoMetaData end
 combine(x,::NoMetaData) = x
+combine(::NoMetaData,x) = x
+combine(::NoMetaData,::NoMetaData) = NoMetaData()
 MetaArray(meta::NoMetaData,data::AbstractArray) = error("Unexpected missing meta data")
 
 # match array behavior of wrapped array (maintaining the metdata)
@@ -182,9 +184,10 @@ function Base.Broadcast.instantiate(bc::Broadcast.Broadcasted{M}) where
   bc_nested = Broadcast.Broadcasted{S}(bc_.f, getdata_.(bc_.args))
   inst = Broadcast.instantiate(bc_nested)
   # extract and combine the meta data
+  @show bc_.args
   meta = reduce(combine,getmeta_.(bc_.args))
   # place the meta data on the first argument
-  args = (MetaArray(meta,inst.args[1]), Base.tail(inst.args)...)
+  args = ((meta,inst.args[1]), Base.tail(inst.args)...)
   # return the instantiated metadata broadcasting
   Broadcast.Broadcasted{M}(bc_.f, args, bc_.axes)
 end
@@ -194,13 +197,14 @@ function Base.similar(bc::Broadcast.Broadcasted{<:MetaArrayStyle{<:Any}},
                       ::Type{T}) where T
   # because the axes have been instantiated, we can safely assume the first
   # argument contains the meta data
-  MetaArray(getmeta(bc.args[1]), similar(broadcasted, T))
+  MetaArray(bc.args[1][1], similar(broadcasted, T))
 end
 
 # copyto!:
 function Base.copyto!(dest::AbstractArray,
                       bc::Broadcast.Broadcasted{<:MetaArrayStyle{S}}) where S
-  bc_ = Broadcast.Broadcasted{S}(bc.f, getdata_.(bc.args), bc.axes)
+  args_ = (bc.args[1][2], Base.tail(bc.args)...)
+  bc_ = Broadcast.Broadcasted{S}(bc.f, args_, bc.axes)
   copyto!(dest,bc_)
 end
 
@@ -212,8 +216,9 @@ end
 function Base.copy(bc::Broadcast.Broadcasted{<:MetaArrayStyle{S}}) where S
   # because the axes have been instantiated, we can safely assume the first
   # argument contains the meta data
-  bc_ = Broadcast.Broadcasted{S}(bc.f, getdata_.(bc.args), bc.axes)
-  MetaArray(getmeta(bc.args[1]), copy(bc_))
+  args_ = (bc.args[1][2], Base.tail(bc.args)...)
+  bc_ = Broadcast.Broadcasted{S}(bc.f, args_, bc.axes)
+  MetaArray(bc.args[1][1], copy(bc_))
 end
 
 end # module
