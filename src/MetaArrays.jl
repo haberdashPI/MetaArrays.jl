@@ -1,5 +1,5 @@
 module MetaArrays
-export meta, MetaArray
+export meta, MetaArray, getmeta
 
 using Requires
 
