@@ -184,7 +184,6 @@ function Base.Broadcast.instantiate(bc::Broadcast.Broadcasted{M}) where
   bc_nested = Broadcast.Broadcasted{S}(bc_.f, getdata_.(bc_.args))
   inst = Broadcast.instantiate(bc_nested)
   # extract and combine the meta data
-  @show bc_.args
   meta = reduce(combine,getmeta_.(bc_.args))
   # place the meta data on the first argument
   args = ((meta,inst.args[1]), Base.tail(inst.args)...)
