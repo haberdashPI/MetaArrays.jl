@@ -46,9 +46,15 @@ struct UnknownMerge{A,B} end
 metamerge(x::NamedTuple,y::NamedTuple) = merge(x,y)
 metamerge(x::AbstractDict,y::AbstractDict) = merge(x,y)
 function metamerge(x::A,y::B) where {A,B}
-  x == y ? y : UnknownMerge{A,B}()
+  x == y ? y : checkmerge(nothing,UnknownMerge{A,B}())
 end
 
+function checkmerge(::Nothing,v::UnknownMerge{A,B}) where {A,B}
+  error("Metadata to combine is non-identical ",
+        "and there is no known way to merge an object of type $A with an",
+        " object of type $B. You can fix this by defining ",
+        "`MetaArrays.metamerge` for these types.")
+end
 function checkmerge(k,v::UnknownMerge{A,B}) where {A,B}
   error("The field `$k` has non-identical values across metadata ",
         "and there is no known way to merge an object of type $A with an",
