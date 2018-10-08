@@ -1,5 +1,5 @@
 module MetaArrays
-export meta, MetaArray, getmeta
+export meta, MetaArray, getmeta, MetaUnion
 
 using Requires
 
@@ -36,6 +36,8 @@ getmeta(x::MetaArray) = Base.getfield(x,:meta)
 function meta(data::MetaArray;meta...)
   MetaArray(getdata(data),merge(getmeta(data),meta)...)
 end
+
+const MetaUnion{T} = Union{MetaArray{<:T},T}
 
 function Base.show(io::IO,::MIME"text/plain",x::MetaArray) where M
   print(io,"MetaArray of ")

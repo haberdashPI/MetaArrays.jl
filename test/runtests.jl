@@ -10,6 +10,9 @@ struct TestMergeFail
   val::Int
 end
 
+testunion(x::MetaUnion{AbstractRange}) = :range
+testunion(x) = :notrange
+
 # TODO: add some more robust tests of broadcast machinery
 # (greater variety of arguments, with more call variants
 # and then check for test coverage
@@ -47,6 +50,12 @@ end
     @test (broadcast(+,x,1:10).val == x.val)
     @test similar(x).val == x.val
     @test (.-x).val == 1
+  end
+
+  @testset "MetaUnion dispatches properly" begin
+    @test testunion(1:5) == :range
+    @test testunion(meta(1:10,val=1)) == :range
+    @test testunion(meta(collect(1:10),val=1)) == :notrange
   end
 
   @testset "MetaArray properly merges metadata" begin
