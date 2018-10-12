@@ -22,6 +22,16 @@ struct MetaArray{A,M,T,N} <: AbstractArray{T,N}
   meta::M
   data::A
 end
+Base.convert(::Type{Array},x::MetaArray) = convert(Array,getdata(x))
+Base.convert(::Type{AbstractArray},x::MetaArray) = getdata(x)
+function Base.zero(x::MetaArray)
+  y = similar(x)
+  y .= zero(eltype(x))
+end
+function Base.one(x::MetaArray)
+  y = similar(x)
+  y .= one(eltype(x))
+end
 
 function MetaArray(meta::M,data::A) where {M,T,N,A<:AbstractArray{T,N}}
   MetaArray{A,M,T,N}(meta,data)

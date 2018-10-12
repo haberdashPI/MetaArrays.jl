@@ -10,6 +10,15 @@ struct TestMergeFail
   val::Int
 end
 
+struct TestArray{A,T,N} <: AbstractArray{T,N}
+  val::A
+end
+Base.similar(val::TestArray,::Type{S},dims::NTuple{<:Any,Int}) where S =
+  TestArray{typeof(val.val),eltype(val),ndims(val)}(similar(val.val))
+Base.size(val::TestArray) = size(val.val)
+Base.getindex(val::TestArray,i::Int...) = getindex(val.val,i...)
+Base.setindex!(val::TestArray,v,i::Int...) = setindex!(val.val,v,i...)
+
 testunion(x::MetaUnion{AbstractRange}) = :range
 testunion(x) = :notrange
 
@@ -102,4 +111,20 @@ testunion(x) = :notrange
     @test_throws ErrorException h.+m
   end
 
+  @testset "Can extract metadata and underlying array" begin
+    x = meta(1:10,val=1)
+
+    @test convert(AbstractArray,x) isa AbstractRange
+    @test convert(Array,x) isa Array
+    @test getmeta(x).val == 1
+    @test getmeta(x) isa NamedTuple
+  end
+
+  @testset "Can compute identity of underlying array" begin
+    x = meta(TestArray{Array,Int,1}(collect(1:5)),val=1)
+    @test zero(x) isa MetaArray{<:TestArray}
+    @test one(x) isa MetaArray{<:TestArray}
+    @test all(zero(x) .== 0)
+    @test all(one(x) .== 1)
+  end
 end
