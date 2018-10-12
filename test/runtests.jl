@@ -122,6 +122,7 @@ testunion(x) = :notrange
 
   @testset "Can compute identity of underlying array" begin
     x = meta(TestArray{Array,Int,1}(collect(1:5)),val=1)
+    @test similar(x) isa MetaArray{<:TestArray}
     @test zero(x) isa MetaArray{<:TestArray}
     @test one(x) isa MetaArray{<:TestArray}
     @test all(zero(x) .== 0)

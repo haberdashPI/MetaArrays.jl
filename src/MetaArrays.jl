@@ -15,6 +15,15 @@ function __init__()
     AxisArrays.axes(x::MetaArray{<:AxisArray}) = AxisArrays.axes(getdata(x))
     AxisArrays.axisnames(x::MetaArray{<:AxisArray}) = axisnames(getdata(x))
     AxisArrays.axisvalues(x::MetaArray{<:AxisArray}) = axisvalues(getdata(x))
+
+    Base.similar(x::MetaArray{<:AxisArray}) =
+      MetaArray(getmeta(x),similar(getdata(x)))
+    Base.similar(x::MetaArray{<:AxisArray},ax1::Axis,axs::Axis...) =
+      similar(x,eltype(x),ax1,axs...)
+    function Base.similar(x::MetaArray{<:AxisArray},::Type{S},
+                          ax1::Axis,axs::Axis...) where S
+      MetaArray(getmeta(x),similar(getdata(x),S,ax1,axs...))
+    end
   end
 end
 
