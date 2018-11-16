@@ -4,8 +4,10 @@ export meta, MetaArray, getmeta, MetaUnion
 using Requires
 
 function __init__()
+
   @require AxisArrays="39de3d68-74b9-583c-8d2d-e117c070f3a9" begin
     using .AxisArrays
+    AxisArray(x::MetaArray{<:AxisArray}) = getdata(x)
     AxisArrays.axisdim(x::MetaArray{<:AxisArray},ax) =
       axisdim(getdata(x),ax)
     AxisArrays.axes(x::MetaArray{<:AxisArray},i::Int...) =
@@ -31,8 +33,22 @@ struct MetaArray{A,M,T,N} <: AbstractArray{T,N}
   meta::M
   data::A
 end
-Base.convert(::Type{Array},x::MetaArray) = convert(Array,getdata(x))
-Base.convert(::Type{AbstractArray},x::MetaArray) = getdata(x)
+# all the extra methods are to avoid method ambiguities with Base
+# methods
+Base.convert(::Type{Any},x::MetaArray) = x
+Base.convert(::Type{T},x::T) where {A<:AbstractArray,T<:MetaArray{<:A}} = x
+Base.convert(::Type{T},x::MetaArray{<:T}) where {T<:AbstractArray} = getdata(x)
+function Base.convert(::Type{A},x::MetaArray{B}) where
+  {A<:Array,B<:AbstractArray}
+
+  convert(A,getdata(x))
+end
+function Base.convert(::Type{A},x::MetaArray{B}) where
+  {A<:AbstractArray,B<:AbstractArray}
+
+  convert(A,getdata(x))
+end
+
 function Base.zero(x::MetaArray)
   y = similar(x)
   y .= zero(eltype(x))
