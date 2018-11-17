@@ -7,7 +7,7 @@ function __init__()
 
   @require AxisArrays="39de3d68-74b9-583c-8d2d-e117c070f3a9" begin
     using .AxisArrays
-    AxisArray(x::MetaArray{<:AxisArray}) = getdata(x)
+    AxisArrays.AxisArray(x::MetaArray{<:AxisArray}) = getdata(x)
     AxisArrays.axisdim(x::MetaArray{<:AxisArray},ax) =
       axisdim(getdata(x),ax)
     AxisArrays.axes(x::MetaArray{<:AxisArray},i::Int...) =
@@ -48,6 +48,7 @@ function Base.convert(::Type{A},x::MetaArray{B}) where
 
   convert(A,getdata(x))
 end
+Base.Array(x::MetaArray) = Array(getdata(x))
 
 function Base.zero(x::MetaArray)
   y = similar(x)
