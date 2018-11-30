@@ -1,5 +1,5 @@
 module MetaArrays
-export meta, MetaArray, getmeta, MetaUnion
+export meta, MetaArray, getmeta, MetaUnion, getcontents
 
 using Requires
 
@@ -7,24 +7,24 @@ function __init__()
 
   @require AxisArrays="39de3d68-74b9-583c-8d2d-e117c070f3a9" begin
     using .AxisArrays
-    AxisArrays.AxisArray(x::MetaArray{<:AxisArray}) = getdata(x)
+    AxisArrays.AxisArray(x::MetaArray{<:AxisArray}) = getcontents(x)
     AxisArrays.axisdim(x::MetaArray{<:AxisArray},ax) =
-      axisdim(getdata(x),ax)
+      axisdim(getcontents(x),ax)
     AxisArrays.axes(x::MetaArray{<:AxisArray},i::Int...) =
-      AxisArrays.axes(getdata(x),i...)
+      AxisArrays.axes(getcontents(x),i...)
     AxisArrays.axes(x::MetaArray{<:AxisArray},T::Type{<:Axis}...) =
-      AxisArrays.axes(getdata(x),T...)
-    AxisArrays.axes(x::MetaArray{<:AxisArray}) = AxisArrays.axes(getdata(x))
-    AxisArrays.axisnames(x::MetaArray{<:AxisArray}) = axisnames(getdata(x))
-    AxisArrays.axisvalues(x::MetaArray{<:AxisArray}) = axisvalues(getdata(x))
+      AxisArrays.axes(getcontents(x),T...)
+    AxisArrays.axes(x::MetaArray{<:AxisArray}) = AxisArrays.axes(getcontents(x))
+    AxisArrays.axisnames(x::MetaArray{<:AxisArray}) = axisnames(getcontents(x))
+    AxisArrays.axisvalues(x::MetaArray{<:AxisArray}) = axisvalues(getcontents(x))
 
     Base.similar(x::MetaArray{<:AxisArray}) =
-      MetaArray(getmeta(x),similar(getdata(x)))
+      MetaArray(getmeta(x),similar(getcontents(x)))
     Base.similar(x::MetaArray{<:AxisArray},ax1::Axis,axs::Axis...) =
       similar(x,eltype(x),ax1,axs...)
     function Base.similar(x::MetaArray{<:AxisArray},::Type{S},
                           ax1::Axis,axs::Axis...) where S
-      MetaArray(getmeta(x),similar(getdata(x),S,ax1,axs...))
+      MetaArray(getmeta(x),similar(getcontents(x),S,ax1,axs...))
     end
   end
 end
@@ -33,22 +33,8 @@ struct MetaArray{A,M,T,N} <: AbstractArray{T,N}
   meta::M
   data::A
 end
-# all the extra methods are to avoid method ambiguities with Base
-# methods
-Base.convert(::Type{Any},x::MetaArray) = x
-Base.convert(::Type{T},x::T) where {A<:AbstractArray,T<:MetaArray{<:A}} = x
-Base.convert(::Type{T},x::MetaArray{<:T}) where {T<:AbstractArray} = getdata(x)
-function Base.convert(::Type{A},x::MetaArray{B}) where
-  {A<:Array,B<:AbstractArray}
-
-  convert(A,getdata(x))
-end
-function Base.convert(::Type{A},x::MetaArray{B}) where
-  {A<:AbstractArray,B<:AbstractArray}
-
-  convert(A,getdata(x))
-end
-Base.Array(x::MetaArray) = Array(getdata(x))
+Base.convert(::Type{A},x::MetaArray) where A<:Array = convert(A,getcontents(x))
+Base.Array(x::MetaArray) = Array(getcontents(x))
 
 function Base.zero(x::MetaArray)
   y = similar(x)
@@ -63,21 +49,21 @@ function MetaArray(meta::M,data::A) where {M,T,N,A<:AbstractArray{T,N}}
   MetaArray{A,M,T,N}(meta,data)
 end
 function MetaArray(meta::M,data::MetaArray) where M
-  MetaArray(combine(meta,getmeta(data)),getdata(data))
+  MetaArray(combine(meta,getmeta(data)),getcontents(data))
 end
 meta(data::AbstractArray;meta...) = MetaArray(meta.data,data)
 Base.getproperty(x::MetaArray,name::Symbol) = getproperty(getmeta(x),name)
-getdata(x::MetaArray) = Base.getfield(x,:data)
+getcontents(x::MetaArray) = Base.getfield(x,:data)
 getmeta(x::MetaArray) = Base.getfield(x,:meta)
 function meta(data::MetaArray;meta...)
-  MetaArray(getdata(data),merge(getmeta(data),meta)...)
+  MetaArray(getcontents(data),merge(getmeta(data),meta)...)
 end
 
 const MetaUnion{T} = Union{MetaArray{<:T},T}
 
 function Base.show(io::IO,::MIME"text/plain",x::MetaArray) where M
   print(io,"MetaArray of ")
-  show(io, "text/plain", getdata(x))
+  show(io, "text/plain", getcontents(x))
 end
 
 struct UnknownMerge{A,B} end
@@ -123,20 +109,20 @@ combine(::NoMetaData,::NoMetaData) = NoMetaData()
 MetaArray(meta::NoMetaData,data::AbstractArray) = error("Unexpected missing meta data")
 
 # match array behavior of wrapped array (maintaining the metdata)
-Base.size(x::MetaArray) = size(getdata(x))
-Base.axes(x::MetaArray) = Base.axes(getdata(x))
-Base.IndexStyle(x::MetaArray) = IndexStyle(getdata(x))
+Base.size(x::MetaArray) = size(getcontents(x))
+Base.axes(x::MetaArray) = Base.axes(getcontents(x))
+Base.IndexStyle(x::MetaArray) = IndexStyle(getcontents(x))
 @inline @Base.propagate_inbounds Base.getindex(x::MetaArray,i::Int...) =
-getindex(getdata(x),i...)
+getindex(getcontents(x),i...)
 @inline @Base.propagate_inbounds Base.getindex(x::MetaArray,i...) =
-metawrap(x,getindex(getdata(x),i...))
+metawrap(x,getindex(getcontents(x),i...))
 @inline @Base.propagate_inbounds Base.setindex!(x::MetaArray{<:Any,<:Any,T},v,i...) where T =
-setindex!(getdata(x),v,i...)
+setindex!(getcontents(x),v,i...)
 @inline @Base.propagate_inbounds function Base.setindex!(x::MetaArray{<:Any,<:Any,T}, v::T,i::Int...) where T
-  setindex!(getdata(x),v,i...)
+  setindex!(getcontents(x),v,i...)
 end
 function Base.similar(x::MetaArray,::Type{S},dims::NTuple{<:Any,Int}) where S
-  MetaArray(getmeta(x),similar(getdata(x),S,dims))
+  MetaArray(getmeta(x),similar(getcontents(x),S,dims))
 end
 
 metawrap(x::MetaArray{<:Any,<:Any,T},val::T) where T = val
@@ -148,9 +134,9 @@ metawrap(x::MetaArray,val::MetaArray) = val
 metawrap(x::MetaArray,val) = error("Unexpected result type $(typeof(val)).")
 
 # maintain stridedness of wrapped array, if present
-Base.strides(x::MetaArray) = strides(getdata(x))
-Base.unsafe_convert(T::Type{<:Ptr},x::MetaArray) = unsafe_convert(T,getdata(x))
-Base.stride(x::MetaArray,i::Int) = stride(getdata(x),i)
+Base.strides(x::MetaArray) = strides(getcontents(x))
+Base.unsafe_convert(T::Type{<:Ptr},x::MetaArray) = unsafe_convert(T,getcontents(x))
+Base.stride(x::MetaArray,i::Int) = stride(getcontents(x),i)
 
 # the meta array broadcast style should retain the nested style information for
 # whatever array type the meta array wraps
@@ -171,19 +157,19 @@ end
 # of the meta-arrays
 find_meta_style(bc::Broadcast.Broadcasted) = find_ms_helper(bc,bc.args...)
 find_meta_style(x) = (NoMetaData(), x)
-find_meta_style(x::MetaArray) = (getmeta(x), getdata(x))
+find_meta_style(x::MetaArray) = (getmeta(x), getcontents(x))
 
 find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},x) where A =
   NoMetaData(), Broadcast.Broadcasted{A}(bc.f, (x,), bc.axes)
 function find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},
                         x::MetaArray) where A
-  getmeta(x), Broadcast.Broadcasted{A}(bc.f,(getdata(x),),bc.axes)
+  getmeta(x), Broadcast.Broadcasted{A}(bc.f,(getcontents(x),),bc.axes)
 end
 function find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},
                         x::MetaArray,rest) where A
   meta, bc_ = find_meta_style(rest)
   combine(getmeta(x),meta),
-    Broadcast.Broadcasted{A}(bc.f, (getdata(x), bc_), bc.axes)
+    Broadcast.Broadcasted{A}(bc.f, (getcontents(x), bc_), bc.axes)
 end
 function find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},
                         x,rest) where A
@@ -205,14 +191,14 @@ meta_broadcasted(metas, result) = MetaArray(reduce(combine,metas), result)
 
 meta_(::NoMetaData,x) = x
 meta_(meta,x) = MetaArray(meta,x)
-getdata_(x) = x
-getdata_(x::MetaArray) = getdata(x)
+getcontents_(x) = x
+getcontents_(x::MetaArray) = getcontents(x)
 getmeta_(x) = NoMetaData()
 getmeta_(x::MetaArray) = getmeta(x)
 
 # broadcasted:
 function Base.Broadcast.broadcasted(::MetaArrayStyle{S}, f, xs...) where S
-  bc = Broadcast.broadcasted(S(),f,getdata_.(xs)...)
+  bc = Broadcast.broadcasted(S(),f,getcontents_.(xs)...)
   meta_broadcasted(getmeta_.(xs), bc)
 end
 
@@ -225,7 +211,7 @@ function Base.Broadcast.instantiate(bc::Broadcast.Broadcasted{M}) where
   # simplify
   bc_ = Broadcast.flatten(bc)
   # instantiate the nested broadcast (that the meta array wraps)
-  bc_nested = Broadcast.Broadcasted{S}(bc_.f, getdata_.(bc_.args))
+  bc_nested = Broadcast.Broadcasted{S}(bc_.f, getcontents_.(bc_.args))
   inst = Broadcast.instantiate(bc_nested)
   # extract and combine the meta data
   meta = reduce(combine,getmeta_.(bc_.args))
@@ -252,7 +238,7 @@ function Base.copyto!(dest::AbstractArray,
 end
 
 function Base.copyto!(dest::MetaArray, bc::Broadcast.Broadcasted{Nothing})
-  copyto!(getdata(dest),bc)
+  copyto!(getcontents(dest),bc)
 end
 
 # copy:

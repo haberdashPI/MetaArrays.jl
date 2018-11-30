@@ -114,8 +114,8 @@ testunion(x) = :notrange
   @testset "Can extract metadata and underlying array" begin
     x = meta(1:10,val=1)
 
-    @test convert(AbstractArray,x) isa AbstractRange
     @test convert(Array,x) isa Array
+    @test getcontents(x) isa AbstractRange
     @test getmeta(x).val == 1
     @test getmeta(x) isa NamedTuple
   end

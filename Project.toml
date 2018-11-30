@@ -1,7 +1,7 @@
 name = "MetaArrays"
 uuid = "36b8f3f0-b776-11e8-061f-1f20094e1fc8"
 authors = ["David Little <david.frank.little@gmail.com>"]
-version = "0.1.5"
+version = "0.2.0"
 
 [deps]
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
