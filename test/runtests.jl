@@ -120,6 +120,12 @@ testunion(x) = :notrange
     @test getmeta(x) isa NamedTuple
   end
 
+  @testset "Conversion to AbstractArray passes through" begin
+    x = meta(1:10,val=1)
+    @test convert(AbstractArray{Int},x) === x
+    @test convert(AbstractArray{Int,1},x) === x
+  end
+
   @testset "Can compute identity of underlying array" begin
     x = meta(TestArray{Array,Int,1}(collect(1:5)),val=1)
     @test similar(x) isa MetaArray{<:TestArray}

@@ -34,6 +34,8 @@ struct MetaArray{A,M,T,N} <: AbstractArray{T,N}
   data::A
 end
 Base.convert(::Type{A},x::MetaArray) where A<:Array = convert(A,getcontents(x))
+Base.convert(::Type{AbstractArray{T,N}},x::MetaArray{T,N}) where {T,N} = x
+Base.convert(::Type{AbstractArray{T}},x::MetaArray{T}) where T = x
 Base.Array(x::MetaArray) = Array(getcontents(x))
 
 function Base.zero(x::MetaArray)
