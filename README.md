@@ -30,7 +30,7 @@ mymethod(x::MetaArray{<:MyArrayType},y::MetaArray{<:MyArrayType}) =
    meta(metamerge(x.meta,y.meta),mymethod(x.data,y.data))
 ```
 
-# Merging Metadata
+## Merging Metadata
 
 During broadcasting, all metadata fields are combined into a single named tuple.
 If a given field is shared across arguments and its values are not `===` it is
@@ -44,13 +44,13 @@ values you can call `MetaArrays.combine` which takes two metadata objects and
 combines them into a single object using `metamerge`, while checking
 for any issues while merging identical fields.
 
-# AxisArrays
+## AxisArrays
 
 MetaArrays is aware of `AxisArrays` and the wrapped meta arrays implement the
 same set of methods as other `AxisArray` objects, and will preserve axes across
 broadcasting.
 
-# Custom metadata types
+## Custom metadata types
 
 Sometimes it is useful to dispatch on the type of the metadata.  To make this
 possible, you can provide a custom type as metadata rather than fields of a
