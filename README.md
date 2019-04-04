@@ -37,10 +37,11 @@ mymethod(x::MetaArray{<:MyArrayType},y::MetaArray{<:MyArrayType}) =
 
 ## Merging Metadata
 
-If you wish to leverage this merging facility in your own methods of `MetaArray`
-values you can call `MetaArrays.combine` which takes two metadata objects and
-combines them into a single object using `metamerge`, while checking
-for any issues while merging identical fields.
+Metadata is merged when two arrays are combined. If you wish to leverage this
+merging facility in your own methods of `MetaArray` values you can call
+`MetaArrays.combine` which takes two metadata objects and combines them into
+a single object using `metamerge`, while checking for any issues while
+merging identical fields.
 
 ## AxisArrays
 
