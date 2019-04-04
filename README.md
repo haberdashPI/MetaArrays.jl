@@ -19,25 +19,23 @@ julia> z.val1
 ```
 
 A `MetaArray` has the same array behavior, broadcasting behavior and strided
-array behavior as the wrapped array, while maintaining the metadata. To
-implement further methods which support maintaining meta-data you can specialize
-over `MetaArray{A}` where `A` is the wrapped array type.  
+array behavior as the wrapped array, while maintaining the metadata. All meta
+data is merged using `metamerge` (which defaults to the behavior of `merge`).
+You can get the wrapped array using `getcontents` and the metadata tuple
+using `getmeta`.
+
+To implement further methods which support maintaining meta-data you can
+specialize over `MetaArray{A}` where `A` is the wrapped array type.
 
 For example
 
 ```julia
-mymethod(x::MetaArray{<:MyArrayType},y::MetaArray{<:MyArrayType}) = 
-   meta(metamerge(x.meta,y.meta),mymethod(x.data,y.data))
+mymethod(x::MetaArray{<:MyArrayType},y::MetaArray{<:MyArrayType}) =
+    meta(mymethod(getcontents(x),getcontents(y)),
+        MetaArrays.combine(getmeta(x),getmeta(y)))
 ```
 
 ## Merging Metadata
-
-During broadcasting, all metadata fields are combined into a single named tuple.
-If a given field is shared across arguments and its values are not `===` it is
-merged using `metamerge`, which is defined for `Dict` and `NamedTuple` objects
-as `merge`. 
-
-You can define your own `metamerge` methods to enable merging of other types. 
 
 If you wish to leverage this merging facility in your own methods of `MetaArray`
 values you can call `MetaArrays.combine` which takes two metadata objects and
@@ -46,18 +44,20 @@ for any issues while merging identical fields.
 
 ## AxisArrays
 
-MetaArrays is aware of `AxisArrays` and the wrapped meta arrays implement the
-same set of methods as other `AxisArray` objects, and will preserve axes across
-broadcasting.
+MetaArrays is aware of
+[`AxisArrays`](https://github.com/JuliaArrays/AxisArrays.jl) and the wrapped
+meta arrays implement a number of the same set of methods as other
+`AxisArray` objects, and will preserve axes across broadcasting.
 
 ## Custom metadata types
 
-Sometimes it is useful to dispatch on the type of the metadata.  To make this
-possible, you can provide a custom type as metadata rather than fields of a
-named tuple.  This can be done by passing your custom object `meta` to
-`MetaData(meta,data)`. For metadata to appropriately merge you will need to
-define `mergemeta` for this type. Just as with named tuples, the fields of the
-custom type can be accessed directly from the metarray.
+Sometimes it is useful to dispatch on the type of the metadata rather than
+the type of the wrapped array. To make this possible, you can provide a
+custom type as metadata rather than fields of a generic, named tuple. This
+can be done by passing your custom object `custom` to `MetaData(custom,data)`.
+For metadata to appropriately merge you will need to define `metamerge` for
+this type. Just as with named tuples, the fields of the custom type can be
+accessed directly from the MetaArray.
 
 Once your custom type is defined you can dispatch on the second type parameter
 of the MetaArray, like so:
@@ -70,3 +70,4 @@ end
 foo(x::MetaArray{<:Any,MyCustomMetadata}) = x.val
 x = MetaArray(MyCustomMetadata("Hello, World"),1:10)
 println(foo(x))
+```

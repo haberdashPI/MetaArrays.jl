@@ -47,20 +47,54 @@ function Base.one(x::MetaArray)
   y .= one(eltype(x))
 end
 
+"""
+    MetaArray{A}(array,meta::A)
+
+Create a meta array with custom metadata type `A`.
+
+Normally it's recommended that you use `meta`; only use a custom meta-data
+type if you plan to have a method specialize on the second type argument of
+the MetaArray.
+"""
 function MetaArray(meta::M,data::A) where {M,T,N,A<:AbstractArray{T,N}}
   MetaArray{A,M,T,N}(meta,data)
 end
 function MetaArray(meta::M,data::MetaArray) where M
   MetaArray(combine(meta,getmeta(data)),getcontents(data))
 end
+
+"""
+    meta(array;kwds...)
+
+Wrap the array as a `MetaArray`, storing the given keyword values.
+"""
 meta(data::AbstractArray;meta...) = MetaArray(meta.data,data)
+
 Base.getproperty(x::MetaArray,name::Symbol) = getproperty(getmeta(x),name)
+
+"""
+    getcontents(x::MetaArray)
+
+Return the wrapped array stored in the `MetaArray`
+"""
 getcontents(x::MetaArray) = Base.getfield(x,:data)
+
+"""
+    getmeta(x::MetaArray)
+
+Return the metadata stored in `MetaArray`
+"""
 getmeta(x::MetaArray) = Base.getfield(x,:meta)
 function meta(data::MetaArray;meta...)
   MetaArray(getcontents(data),merge(getmeta(data),meta)...)
 end
 
+"""
+    MetaUnion{T} = Union{MetaArray{<:T},T}
+
+Type alias for defining a method that operates on both `T` and
+a meta array of `T`.
+"""
 const MetaUnion{T} = Union{MetaArray{<:T},T}
 
 function Base.show(io::IO,::MIME"text/plain",x::MetaArray) where M
