@@ -1,10 +1,10 @@
 # MetaArrays
 
-A `MetaArray` stores extra data as a named tuple along with an array, which can
-be accessed as fields of the array object. It otherwise behaves much as the
-stored array. 
+A `MetaArray` stores extra data (usually) as a named tuple along with an
+array. The data can be accessed as fields of the array object. It otherwise
+behaves much as the stored array.
 
-You create a meta array by calling `meta` with the specified metadata as keyword
+You create a meta-array by calling `meta` with the specified metadata as keyword
 arguments; any operations over the array will preserve the metadata.
 
 For example:

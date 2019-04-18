@@ -120,6 +120,34 @@ testunion(x) = :notrange
     @test getmeta(x) isa NamedTuple
   end
 
+  @testset "Appropriate conversion" begin
+    x = meta(1:10,val=1)
+
+    @test convert(AbstractArray{Int},x) === x
+    @test convert(AbstractArray{Int,1},x) === x
+    @test_throws MethodError convert(AbstractArray{String},x)
+    @test_throws MethodError convert(AbstractArray{Int,2},x)
+    @test Array(x) == Array(1:10)
+
+    xplus = MetaArray((test=2,),x)
+    @test getcontents(xplus) == getcontents(x)
+    @test xplus.val == 1
+    @test xplus.test == 2
+
+    xplus = meta(x,test=2)
+    @test getcontents(xplus) == getcontents(x)
+    @test xplus.val == 1
+    @test xplus.test == 2
+  end
+
+  @testset "Preoper MetaArray display" begin
+    expected = "MetaArray of 1:10"
+    x = meta(1:10,val=1)
+    iobuf = IOBuffer()
+    display(TextDisplay(iobuf), x)
+    @test String(take!(iobuf)) == expected
+  end
+
   @testset "Conversion to AbstractArray passes through" begin
     x = meta(1:10,val=1)
     @test convert(AbstractArray{Int},x) === x

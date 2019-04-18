@@ -86,7 +86,7 @@ Return the metadata stored in `MetaArray`
 """
 getmeta(x::MetaArray) = Base.getfield(x,:meta)
 function meta(data::MetaArray;meta...)
-  MetaArray(getcontents(data),merge(getmeta(data),meta)...)
+  MetaArray(merge(getmeta(data),meta.data),getcontents(data))
 end
 
 """
@@ -106,7 +106,7 @@ struct UnknownMerge{A,B} end
 metamerge(x::NamedTuple,y::NamedTuple) = merge(x,y)
 metamerge(x::AbstractDict,y::AbstractDict) = merge(x,y)
 function metamerge(x::A,y::B) where {A,B}
-  x == y ? y : checkmerge(nothing,UnknownMerge{A,B}())
+  x == y ? y : UnknownMerge{A,B}()
 end
 
 function checkmerge(::Nothing,v::UnknownMerge{A,B}) where {A,B}
@@ -117,14 +117,18 @@ function checkmerge(::Nothing,v::UnknownMerge{A,B}) where {A,B}
 end
 function checkmerge(k,v::UnknownMerge{A,B}) where {A,B}
   error("The field `$k` has non-identical values across metadata ",
-        "and there is no known way to merge an object of type $A with an",
+        "and there is no known way to merge non-identical objects of type $A with an",
         " object of type $B. You can fix this by defining ",
         "`MetaArrays.metamerge` for these types.")
 end
 checkmerge(k,v) = nothing
 
 # TOOD: file an issue with julia about mis-behavior of `merge`.
-combine(x,y) = metamerge(x,y)
+function combine(x,y)
+  result = metamerge(x,y)
+  checkmerge(nothing,result)
+  result
+end
 function combine(x::NamedTuple,y::NamedTuple)
   result = combine_(x,iterate(pairs(x)),y)
   for (k,v) in pairs(result); checkmerge(k,v); end
@@ -186,31 +190,6 @@ function Base.Broadcast.BroadcastStyle(a::MetaArrayStyle{A},b::B) where
   {A,B<:Broadcast.BroadcastStyle}
 
   MetaArrayStyle(Broadcast.BroadcastStyle(A(),b))
-end
-
-# helper functions to simultaneously extract and merge the meta data across all
-# arguments, and the broadcasted object that would be created by wrapped arrays
-# of the meta-arrays
-find_meta_style(bc::Broadcast.Broadcasted) = find_ms_helper(bc,bc.args...)
-find_meta_style(x) = (NoMetaData(), x)
-find_meta_style(x::MetaArray) = (getmeta(x), getcontents(x))
-
-find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},x) where A =
-  NoMetaData(), Broadcast.Broadcasted{A}(bc.f, (x,), bc.axes)
-function find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},
-                        x::MetaArray) where A
-  getmeta(x), Broadcast.Broadcasted{A}(bc.f,(getcontents(x),),bc.axes)
-end
-function find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},
-                        x::MetaArray,rest) where A
-  meta, bc_ = find_meta_style(rest)
-  combine(getmeta(x),meta),
-    Broadcast.Broadcasted{A}(bc.f, (getcontents(x), bc_), bc.axes)
-end
-function find_ms_helper(bc::Broadcast.Broadcasted{<:MetaArrayStyle{A}},
-                        x,rest) where A
-  meta, bc_ = find_meta_style(rest)
-  meta, Broadcast.Broadcasted{A}(bc.f, (x, bc_), bc.axes)
 end
 
 ################################################################################
