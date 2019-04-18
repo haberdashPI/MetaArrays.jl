@@ -1,6 +1,6 @@
 # MetaArrays
 
-[![Build Status](https://travis-ci.org/haberdashPI/MetaArrays.jl.svg?branch=master)](https://travis-ci.org/JuliaCI/Coverage.jl)
+[![Build Status](https://travis-ci.org/haberdashPI/MetaArrays.jl.svg?branch=master)](https://travis-ci.org/haberdashPI/MetaArrays.jl)
 [![Build status](https://ci.appveyor.com/api/projects/status/07fkrnj70sevoqny?svg=true)](https://ci.appveyor.com/project/haberdashPI/meta-arrays-jl)
 [![codecov](https://codecov.io/gh/haberdashPI/MetaArrays.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/haberdashPI/MetaArrays.jl)
 
