@@ -1,5 +1,9 @@
 # MetaArrays
 
+[![Build Status](https://travis-ci.org/haberdashPI/MetaArrays.jl.svg?branch=master)](https://travis-ci.org/JuliaCI/Coverage.jl)
+[![Build status](https://ci.appveyor.com/api/projects/status/07fkrnj70sevoqny?svg=true)](https://ci.appveyor.com/project/JuliaCI/coverage-jl)
+[![codecov](https://codecov.io/gh/haberdashPI/MetaArrays.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/haberdashPI/MetaArrays.jl)
+
 A `MetaArray` stores extra data (usually) as a named tuple along with an
 array. The data can be accessed as fields of the array object. It otherwise
 behaves much as the stored array.
