@@ -36,6 +36,8 @@ end
 Base.convert(::Type{A},x::MetaArray) where A<:Array = convert(A,getcontents(x))
 Base.convert(::Type{AbstractArray{T,N}},x::MetaArray{T,N}) where {T,N} = x
 Base.convert(::Type{AbstractArray{T}},x::MetaArray{T}) where T = x
+Base.unsafe_convert(::Type{Ptr{T}},x::MetaArray{<:Any,<:Any,T}) where T =
+  Base.unsafe_convert(Ptr{T},getcontents(x))
 Base.Array(x::MetaArray) = Array(getcontents(x))
 
 function Base.zero(x::MetaArray)
