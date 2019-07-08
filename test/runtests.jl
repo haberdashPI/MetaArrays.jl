@@ -1,10 +1,21 @@
 using Test
 using MetaArrays
+using StaticArrays
 
 struct TestMerge
   val::Int
 end
 MetaArrays.metamerge(x::TestMerge,y::TestMerge) = TestMerge(x.val + y.val)
+
+struct TestIndex <: AbstractArray{Float64,1}
+  x::Vector{Float64}
+end
+Base.similar(val::TestIndex,::Type{S},dims::NTuple{<:Any,Int}) where S =
+  TestIndex{typeof(val.x),eltype(val),ndims(val)}(similar(val.x))
+Base.size(val::TestIndex) = size(val.x)
+Base.getindex(val::TestIndex,i::Int...) = getindex(val.x,i...)
+# not realy a useful function, just a test:
+Base.getindex(val::TestIndex,i::Float64) = val[floor(Int,i)] + val[ceil(Int,i)]
 
 struct TestMergeFail
   val::Int
@@ -45,6 +56,10 @@ testunion(x) = :notrange
     @test collect(1:10) .+ x .+ collect(11:20) == (13:3:40)
     @test broadcast(+,collect(1:10),x,collect(11:20)) == (13:3:40)
     @test (1:10) .+ meta(1:10,val=1) .+ (11:20) isa MetaArray
+
+    x = TestIndex(collect(1:5))
+    @test x[1] == 1
+    @test x[1.5] == 3
   end
 
   @testset "MetaArray preserves metadata over array operations" begin
@@ -59,6 +74,28 @@ testunion(x) = :notrange
     @test (broadcast(+,x,1:10).val == x.val)
     @test similar(x).val == x.val
     @test (.-x).val == 1
+
+    x = meta(collect(1:10),val=1)
+    y = meta(collect(1:10),val=1)
+    @test vcat(x,y) isa MetaArray
+    @test hcat(x,y) isa MetaArray
+    @test x*y' isa MetaArray
+
+    x = collect(1:10)
+    y = meta(collect(1:10),val=1)
+    @test hcat(x,y) isa Array
+    @test hcat(y,x) isa MetaArray
+    @test vcat(x,y) isa Array
+    @test vcat(y,x) isa MetaArray
+    @test x*y' isa Array
+    @test y*x' isa MetaArray
+  end
+
+  @testset "MetaArray properly handles strides" begin
+    @test_throws MethodError strides(meta(1:10,val=1))
+    x = meta(collect(1:10),val=1)
+    @test strides(x) == (1,)
+    @test strides(x)[1] == stride(x,1)
   end
 
   @testset "MetaUnion dispatches properly" begin
@@ -72,6 +109,13 @@ testunion(x) = :notrange
     y = meta(collect(2:11),string="string")
     @test (x.+y).val == 1
     @test (x.+y).string == "string"
+    @test (x .+ (1:10)).val == 1
+    @test ((1:10) .+ x).val == 1
+
+    x = MetaArray(Dict(:test => "value"),collect(1:10))
+    y = MetaArray(Dict(:test => "value"),collect(2:11))
+    @test getmeta((x .+ y))[:test] == "value"
+
 
     x = meta(collect(1:10),val=1)
     y = meta(collect(1:10),val=2)
@@ -88,12 +132,21 @@ testunion(x) = :notrange
   end
 
   @testset "MetaArray preserves broadcast specialization" begin
+    # Range objects define a specialized lazy broadcasting style,
+    # we use them to test the presevation of this lazy style
     x = meta(1:10,val=1)
     @test (x .+ 4) isa MetaArray{<:AbstractRange}
     @test (x .+ 4) == [xi+4 for xi in x]
     @test (.-x) isa MetaArray{<:AbstractRange}
     @test (1:10) .+ meta(1:10,val=1) .+ (11:20) isa MetaArray{<:AbstractRange}
     @test .-x == [-xi for xi in x]
+
+    # SVector defines a specialized style for broadcasting, we use it to test
+    # the handling of specialized broadcasting styles
+    x = meta(SVector(1,2,3),val=1)
+    y = meta([1,2,3],val=1)
+    @test x.+y == [2,4,6]
+    @test (x.+y).val == 1
   end
 
   @testset "MetaArray allows custom metadata type" begin
@@ -149,7 +202,7 @@ testunion(x) = :notrange
   end
 
   @testset "Conversion to AbstractArray passes through" begin
-    x = meta(1:10,val=1)
+    x = meta(collect(1:10),val=1)
     @test convert(AbstractArray{Int},x) === x
     @test convert(AbstractArray{Int,1},x) === x
   end
