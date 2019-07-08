@@ -44,15 +44,15 @@ mymethod(x::MetaArray{<:MyArrayType},y::MetaArray{<:MyArrayType}) =
 Metadata is merged when two arrays are combined. If you wish to leverage this
 merging facility in your own methods of `MetaArray` values you can call
 `MetaArrays.combine` which takes two metadata objects and combines them into
-a single object using `metamerge`, while checking for any issues while
-merging identical fields.
+a single object using `metamerge`, while checking for any issues when
+merging identically named fields.
 
 ## AxisArrays
 
 MetaArrays is aware of
 [`AxisArrays`](https://github.com/JuliaArrays/AxisArrays.jl) and the wrapped
 meta arrays implement a number of the same set of methods as other
-`AxisArray` objects, and will preserve axes across broadcasting.
+`AxisArray` objects.
 
 ## Custom metadata types
 
