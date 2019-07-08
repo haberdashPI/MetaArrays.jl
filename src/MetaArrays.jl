@@ -189,7 +189,13 @@ Base.Broadcast.BroadcastStyle(a::MetaArrayStyle{A},b::MetaArrayStyle{B}) where {
 function Base.Broadcast.BroadcastStyle(a::MetaArrayStyle{A},b::B) where
   {A,B<:Broadcast.BroadcastStyle}
 
-  metastyle(Broadcast.BroadcastStyle(A(),b))
+  a_ = A()
+  left = metastyle(Broadcast.BroadcastStyle(a_,b))
+  if !(left isa Broadcast.Unknown)
+    left
+  else
+    metastyle(Broadcast.BroadcastStyle(b,a_))
+  end
 end
 metastyle(x) = MetaArrayStyle(x)
 metastyle(x::Broadcast.Unknown) = x
