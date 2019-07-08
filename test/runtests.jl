@@ -112,15 +112,6 @@ testunion(x) = :notrange
     @test (x .+ (1:10)).val == 1
     @test ((1:10) .+ x).val == 1
 
-    y = SVector((1:10)...)
-    @test (x .+ y).val == 1
-    @test (y .+ x).val == 1
-
-    y = meta(y,val=1)
-    x = collect(1:10)
-    @test (x .+ y).val == 1
-    @test (y .+ x).val == 1
-
     x = MetaArray(Dict(:test => "value"),collect(1:10))
     y = MetaArray(Dict(:test => "value"),collect(2:11))
     @test getmeta((x .+ y))[:test] == "value"
@@ -156,6 +147,16 @@ testunion(x) = :notrange
     y = meta([1,2,3],val=1)
     @test x.+y == [2,4,6]
     @test (x.+y).val == 1
+
+    x = meta(collect(1:10),val=1)
+    y = SVector((1:10)...)
+    @test (x .+ y).val == 1
+    @test (y .+ x).val == 1
+
+    y = meta(y,val=1)
+    x = collect(1:10)
+    @test (x .+ y).val == 1
+    @test (y .+ x).val == 1
   end
 
   @testset "MetaArray allows custom metadata type" begin
