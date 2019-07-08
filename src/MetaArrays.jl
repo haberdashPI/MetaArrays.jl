@@ -205,8 +205,6 @@ function meta_broadcasted(metas, bc::Broadcast.Broadcasted{S}) where S
   Broadcast.Broadcasted{MetaArrayStyle{S}}(bc.f, args, bc.axes)
 end
 meta_broadcasted(metas, result) = MetaArray(reduce(combine,metas), result)
-content_broadcasted(bc::Broadcast.Broadcasted{<:MetaArrayStyle{S}}) where S =
-  Broadcast.Broadcasted{S}(bc.f,getcontents_.(bc.args),bc.axes)
 
 meta_(::NoMetaData,x) = x
 meta_(meta,x) = MetaArray(meta,x)
