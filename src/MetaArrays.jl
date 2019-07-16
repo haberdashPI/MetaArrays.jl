@@ -154,13 +154,21 @@ MetaArray(meta::NoMetaData,data::AbstractArray) = error("Unexpected missing meta
 Base.size(x::MetaArray) = size(getcontents(x))
 Base.axes(x::MetaArray) = Base.axes(getcontents(x))
 Base.IndexStyle(x::MetaArray) = IndexStyle(getcontents(x))
-@inline @Base.propagate_inbounds Base.getindex(x::MetaArray,i::Int...) =
+
+# resolves some ambiguities in Base; borrowed from AxisArray (this may break at
+# some future date)
+using Base: ViewIndex, @propagate_inbounds, AbstractCartesianIndex
+@propagate_inbounds Base.view(A::MetaArray, idxs::ViewIndex...) = MetaArray(getmeta(A),view(getcontents(A), idxs...))
+@propagate_inbounds Base.view(A::MetaArray, idxs::Union{ViewIndex,AbstractCartesianIndex}...) = MetaArray(getmeta(A),view(getcontents(A), idxs...))
+@propagate_inbounds Base.view(A::MetaArray, idxs...) = MetaArray(getmeta(A),view(getcontents(A), idxs...))
+
+@propagate_inbounds Base.getindex(x::MetaArray,i::Int...) =
 getindex(getcontents(x),i...)
-@inline @Base.propagate_inbounds Base.getindex(x::MetaArray,i...) =
+@propagate_inbounds Base.getindex(x::MetaArray,i...) =
 metawrap(x,getindex(getcontents(x),i...))
-@inline @Base.propagate_inbounds Base.setindex!(x::MetaArray{<:Any,<:Any,T},v,i...) where T =
-setindex!(getcontents(x),v,i...)
-@inline @Base.propagate_inbounds function Base.setindex!(x::MetaArray{<:Any,<:Any,T}, v::T,i::Int...) where T
+@propagate_inbounds Base.setindex!(x::MetaArray{<:Any,<:Any,T},v,i...) where T =
+  setindex!(getcontents(x),v,i...)
+@propagate_inbounds function Base.setindex!(x::MetaArray{<:Any,<:Any,T}, v::T,i::Int...) where T
   setindex!(getcontents(x),v,i...)
 end
 function Base.similar(x::MetaArray,::Type{S},dims::NTuple{<:Any,Int}) where S

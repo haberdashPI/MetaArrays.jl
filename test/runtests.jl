@@ -1,6 +1,8 @@
 using Test
 using MetaArrays
 using StaticArrays
+using AxisArrays
+using Unitful
 
 struct TestMerge
   val::Int
@@ -56,6 +58,7 @@ testunion(x) = :notrange
     @test collect(1:10) .+ x .+ collect(11:20) == (13:3:40)
     @test broadcast(+,collect(1:10),x,collect(11:20)) == (13:3:40)
     @test (1:10) .+ meta(1:10,val=1) .+ (11:20) isa MetaArray
+    @test view(x,1:2) isa MetaArray
 
     x = TestIndex(collect(1:5))
     @test x[1] == 1
@@ -129,6 +132,26 @@ testunion(x) = :notrange
     x = meta(collect(1:10),val=(joe=2,bob=3))
     y = meta(collect(1:10),val=(bill=4,))
     @test (x.+y).val == (joe=2,bob=3,bill=4)
+  end
+
+  f(x) = (x[0u"s" .. 0.5u"s"] .= 0)
+
+  @testset "MetaArray is AxisArray friendly" begin
+    x = meta(AxisArray(rand(10,10),Axis{:time}(range(0u"s",1u"s",length=10)),
+      Axis{:freq}(1:10)),val=1)
+    x[0u"s" .. 0.5u"s"] = fill(0.0,size(x[0u"s" .. 0.5u"s"]))
+    @test all(x[1:5] .== 0)
+    x[0u"s" .. 0.5u"s"] .= 1
+    @test all(x[1:5] .== 1)
+
+    @test axisdim(x,Axis{:time}) == 1
+    @test AxisArray(x) isa AxisArray
+    @test AxisArrays.axes(x)[1] isa Axis{:time}
+    @test AxisArrays.axes(x,1) isa Axis{:time}
+    @test AxisArrays.axes(x,Axis{:time}) isa Axis{:time}
+    @test axisnames(x) == (:time,:freq)
+    @test axisvalues(x)[2] == 1:10
+    @test size(similar(x)) == size(x)
   end
 
   @testset "MetaArray preserves broadcast specialization" begin
