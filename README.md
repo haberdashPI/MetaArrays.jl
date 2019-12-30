@@ -1,7 +1,7 @@
 # MetaArrays
 
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
-[![Build Status](https://travis-ci.com/haberdashPI/MetaArrays.jl.svg?branch=master)](https://travis-ci.com/haberdashPI/MetaArrays.jl)
+[![Build Status](https://travis-ci.org/haberdashPI/MetaArrays.jl.svg?branch=master)](https://travis-ci.org/haberdashPI/MetaArrays.jl)
 [![codecov](https://codecov.io/gh/haberdashPI/MetaArrays.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/haberdashPI/MetaArrays.jl)
 
 A `MetaArray` stores extra data (usually) as a named tuple along with an
