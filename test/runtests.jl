@@ -137,7 +137,7 @@ testunion(x) = :notrange
   f(x) = (x[0u"s" .. 0.5u"s"] .= 0)
 
   @testset "MetaArray is AxisArray friendly" begin
-    x = meta(AxisArray(rand(10,10),Axis{:time}(range(0u"s",1u"s",length=10)),
+    x = meta(AxisArray(rand(10,10),Axis{:time}(range(start=0u"s",stop=1u"s",length=10)),
       Axis{:freq}(1:10)),val=1)
     x[0u"s" .. 0.5u"s"] = fill(0.0,size(x[0u"s" .. 0.5u"s"]))
     @test all(x[1:5] .== 0)
