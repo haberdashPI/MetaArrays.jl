@@ -233,7 +233,7 @@ testunion(x) = :notrange
     @test xplus.test == 2
   end
 
-  @testset "Preoper MetaArray display" begin
+  @testset "Proper MetaArray display" begin
     expected = "MetaArray of 1:10"
     x = meta(1:10,val=1)
     iobuf = IOBuffer()
