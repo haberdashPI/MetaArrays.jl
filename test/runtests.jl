@@ -187,6 +187,18 @@ testunion(x) = :notrange
     x = collect(1:10)
     @test (x .+ y).val == 1
     @test (y .+ x).val == 1
+
+    x = meta(collect(1:10), val=1)
+    @test x + x == 2parent(x)
+    @test getmeta(x + x) == getmeta(x)
+    y = meta(collect(1:10), a=1, b=2)
+    @test x + y == parent(x) + parent(y)
+    # compare pairs to ignore the order of keys
+    @test pairs(getmeta(x + y)) == pairs(merge(getmeta(x), getmeta(y)))
+    y = meta(collect(1:10), val=1, b=2)
+    @test x + y == parent(x) + parent(y)
+    # compare pairs to ignore the order of keys
+    @test pairs(getmeta(x + y)) == pairs(getmeta(y))
   end
 
   @testset "MetaArray allows custom metadata type" begin

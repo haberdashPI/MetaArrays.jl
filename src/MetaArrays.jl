@@ -138,16 +138,16 @@ function combine(x,y)
   result
 end
 function combine(x::NamedTuple,y::NamedTuple)
-  result = combine_(x,iterate(pairs(x)),y)
+  result = combine_(pairs(x),iterate(pairs(x)),y)
   for (k,v) in pairs(result); checkmerge(k,v); end
 
   result
 end
-combine_(x,::Nothing,result) = result
-function combine_(x,((key,val),state),result)
+combine_(x, ::Nothing, result) = result
+function combine_(x, ((key,val),state), result)
   newval = haskey(result,key) ? metamerge(val,result[key]) : val
   entry = NamedTuple{(key,)}((newval,))
-  combine_(x,iterate(x,state),merge(result,entry))
+  combine_(x, iterate(x,state), merge(result,entry))
 end
 
 struct NoMetaData end
