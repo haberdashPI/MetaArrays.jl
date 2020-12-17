@@ -3,6 +3,7 @@ using MetaArrays
 using StaticArrays
 using AxisArrays
 using Unitful
+using OffsetArrays
 
 struct TestMerge
   val::Int
@@ -63,6 +64,12 @@ testunion(x) = :notrange
     x = TestIndex(collect(1:5))
     @test x[1] == 1
     @test x[1.5] == 3
+  end
+
+  @testset "MetaArray handles offset array operations" begin
+    off = OffsetArray(rand(5,5), -2:2, -2:2)
+    @test firstindex(off) == firstindex(meta(off, val=1))
+    @test Base.axes(off) == Base.axes(meta(off, val=1))
   end
 
   @testset "MetaArray preserves metadata over array operations" begin
