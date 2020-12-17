@@ -208,7 +208,8 @@ testunion(x) = :notrange
     x = meta(1:10,val=1)
 
     @test convert(Array,x) isa Array
-    @test getcontents(x) isa AbstractRange
+    @test (@test_deprecated getcontents(x)) isa AbstractRange
+    @test parent(x) isa AbstractRange
     @test getmeta(x).val == 1
     @test getmeta(x) isa NamedTuple
   end
@@ -222,13 +223,15 @@ testunion(x) = :notrange
     @test_throws MethodError convert(AbstractArray{Int,2},x)
     @test Array(x) == Array(1:10)
 
+    @test (@test_deprecated getcontents(x)) === parent(x) === 1:10
+
     xplus = MetaArray((test=2,),x)
-    @test getcontents(xplus) == getcontents(x)
+    @test (@test_deprecated getcontents(xplus)) === parent(xplus) === parent(x)
     @test xplus.val == 1
     @test xplus.test == 2
 
     xplus = meta(x,test=2)
-    @test getcontents(xplus) == getcontents(x)
+    @test (@test_deprecated getcontents(xplus)) === parent(xplus) === parent(x)
     @test xplus.val == 1
     @test xplus.test == 2
   end
