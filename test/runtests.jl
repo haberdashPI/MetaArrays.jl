@@ -187,6 +187,18 @@ testunion(x) = :notrange
     x = collect(1:10)
     @test (x .+ y).val == 1
     @test (y .+ x).val == 1
+
+    x = meta(collect(1:10), val=1)
+    @test x + x == 2parent(x)
+    @test getmeta(x + x) == getmeta(x)
+    y = meta(collect(1:10), a=1, b=2)
+    @test x + y == parent(x) + parent(y)
+    # compare pairs to ignore the order of keys
+    @test pairs(getmeta(x + y)) == pairs(merge(getmeta(x), getmeta(y)))
+    y = meta(collect(1:10), val=1, b=2)
+    @test x + y == parent(x) + parent(y)
+    # compare pairs to ignore the order of keys
+    @test pairs(getmeta(x + y)) == pairs(getmeta(y))
   end
 
   @testset "MetaArray allows custom metadata type" begin
@@ -208,7 +220,8 @@ testunion(x) = :notrange
     x = meta(1:10,val=1)
 
     @test convert(Array,x) isa Array
-    @test getcontents(x) isa AbstractRange
+    @test (@test_deprecated getcontents(x)) isa AbstractRange
+    @test parent(x) isa AbstractRange
     @test getmeta(x).val == 1
     @test getmeta(x) isa NamedTuple
   end
@@ -222,13 +235,15 @@ testunion(x) = :notrange
     @test_throws MethodError convert(AbstractArray{Int,2},x)
     @test Array(x) == Array(1:10)
 
+    @test (@test_deprecated getcontents(x)) === parent(x) === 1:10
+
     xplus = MetaArray((test=2,),x)
-    @test getcontents(xplus) == getcontents(x)
+    @test (@test_deprecated getcontents(xplus)) === parent(xplus) === parent(x)
     @test xplus.val == 1
     @test xplus.test == 2
 
     xplus = meta(x,test=2)
-    @test getcontents(xplus) == getcontents(x)
+    @test (@test_deprecated getcontents(xplus)) === parent(xplus) === parent(x)
     @test xplus.val == 1
     @test xplus.test == 2
   end

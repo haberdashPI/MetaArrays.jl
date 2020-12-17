@@ -7,24 +7,24 @@ function __init__()
 
   @require AxisArrays="39de3d68-74b9-583c-8d2d-e117c070f3a9" begin
     using .AxisArrays
-    AxisArrays.AxisArray(x::MetaArray{<:AxisArray}) = getcontents(x)
+    AxisArrays.AxisArray(x::MetaArray{<:AxisArray}) = parent(x)
     AxisArrays.axisdim(x::MetaArray{<:AxisArray},ax) =
-      axisdim(getcontents(x),ax)
+      axisdim(parent(x),ax)
     AxisArrays.axes(x::MetaArray{<:AxisArray},i::Int...) =
-      AxisArrays.axes(getcontents(x),i...)
+      AxisArrays.axes(parent(x),i...)
     AxisArrays.axes(x::MetaArray{<:AxisArray},T::Type{<:Axis}...) =
-      AxisArrays.axes(getcontents(x),T...)
-    AxisArrays.axes(x::MetaArray{<:AxisArray}) = AxisArrays.axes(getcontents(x))
-    AxisArrays.axisnames(x::MetaArray{<:AxisArray}) = axisnames(getcontents(x))
-    AxisArrays.axisvalues(x::MetaArray{<:AxisArray}) = axisvalues(getcontents(x))
+      AxisArrays.axes(parent(x),T...)
+    AxisArrays.axes(x::MetaArray{<:AxisArray}) = AxisArrays.axes(parent(x))
+    AxisArrays.axisnames(x::MetaArray{<:AxisArray}) = axisnames(parent(x))
+    AxisArrays.axisvalues(x::MetaArray{<:AxisArray}) = axisvalues(parent(x))
 
     Base.similar(x::MetaArray{<:AxisArray}) =
-      MetaArray(getmeta(x),similar(getcontents(x)))
+      MetaArray(getmeta(x),similar(parent(x)))
     Base.similar(x::MetaArray{<:AxisArray},ax1::Axis,axs::Axis...) =
       similar(x,eltype(x),ax1,axs...)
     function Base.similar(x::MetaArray{<:AxisArray},::Type{S},
                           ax1::Axis,axs::Axis...) where S
-      MetaArray(getmeta(x),similar(getcontents(x),S,ax1,axs...))
+      MetaArray(getmeta(x),similar(parent(x),S,ax1,axs...))
     end
   end
 end
@@ -33,12 +33,10 @@ struct MetaArray{A,M,T,N} <: AbstractArray{T,N}
   meta::M
   data::A
 end
-Base.convert(::Type{A},x::MetaArray) where A<:Array = convert(A,getcontents(x))
-Base.convert(::Type{AbstractArray{T,N}},x::MetaArray{T,N}) where {T,N} = x
-Base.convert(::Type{AbstractArray{T}},x::MetaArray{T}) where T = x
+Base.convert(::Type{A},x::MetaArray) where A<:Array = convert(A,parent(x))
 Base.unsafe_convert(::Type{Ptr{T}},x::MetaArray{<:Any,<:Any,T}) where T =
-  Base.unsafe_convert(Ptr{T},getcontents(x))
-Base.Array(x::MetaArray) = Array(getcontents(x))
+  Base.unsafe_convert(Ptr{T},parent(x))
+Base.Array(x::MetaArray) = Array(parent(x))
 
 function Base.zero(x::MetaArray)
   y = similar(x)
@@ -62,7 +60,7 @@ function MetaArray(meta::M,data::A) where {M,T,N,A<:AbstractArray{T,N}}
   MetaArray{A,M,T,N}(meta,data)
 end
 function MetaArray(meta::M,data::MetaArray) where M
-  MetaArray(combine(meta,getmeta(data)),getcontents(data))
+  MetaArray(combine(meta,getmeta(data)),parent(data))
 end
 
 """
@@ -78,8 +76,16 @@ Base.getproperty(x::MetaArray,name::Symbol) = getproperty(getmeta(x),name)
     getcontents(x::MetaArray)
 
 Return the wrapped array stored in the `MetaArray`
+
+!!! warn
+    This function is deprecated and will be removed in a future release. Please use 
+    `parent(x)` instead.
 """
-getcontents(x::MetaArray) = Base.getfield(x,:data)
+getcontents
+
+@deprecate getcontents(x::MetaArray) parent(x)
+
+Base.parent(x::MetaArray) = Base.getfield(x, :data)
 
 """
     getmeta(x::MetaArray)
@@ -88,7 +94,7 @@ Return the metadata stored in `MetaArray`
 """
 getmeta(x::MetaArray) = Base.getfield(x,:meta)
 function meta(data::MetaArray;meta...)
-  MetaArray(merge(getmeta(data),meta.data),getcontents(data))
+  MetaArray(merge(getmeta(data),meta.data), parent(data))
 end
 
 """
@@ -101,7 +107,7 @@ const MetaUnion{T} = Union{MetaArray{<:T},T}
 
 function Base.show(io::IO,::MIME"text/plain",x::MetaArray) where M
   print(io,"MetaArray of ")
-  show(io, "text/plain", getcontents(x))
+  show(io, "text/plain", parent(x))
 end
 
 struct UnknownMerge{A,B} end
@@ -132,16 +138,16 @@ function combine(x,y)
   result
 end
 function combine(x::NamedTuple,y::NamedTuple)
-  result = combine_(x,iterate(pairs(x)),y)
+  result = combine_(pairs(x),iterate(pairs(x)),y)
   for (k,v) in pairs(result); checkmerge(k,v); end
 
   result
 end
-combine_(x,::Nothing,result) = result
-function combine_(x,((key,val),state),result)
+combine_(x, ::Nothing, result) = result
+function combine_(x, ((key,val),state), result)
   newval = haskey(result,key) ? metamerge(val,result[key]) : val
   entry = NamedTuple{(key,)}((newval,))
-  combine_(x,iterate(x,state),merge(result,entry))
+  combine_(x, iterate(x,state), merge(result,entry))
 end
 
 struct NoMetaData end
@@ -151,28 +157,23 @@ combine(::NoMetaData,::NoMetaData) = NoMetaData()
 MetaArray(meta::NoMetaData,data::AbstractArray) = error("Unexpected missing meta data")
 
 # match array behavior of wrapped array (maintaining the metdata)
-Base.size(x::MetaArray) = size(getcontents(x))
-Base.axes(x::MetaArray) = Base.axes(getcontents(x))
-Base.IndexStyle(x::MetaArray) = IndexStyle(getcontents(x))
+Base.size(x::MetaArray) = size(parent(x))
+Base.axes(x::MetaArray) = Base.axes(parent(x))
+Base.IndexStyle(x::MetaArray) = IndexStyle(parent(x))
 
 # resolves some ambiguities in Base; borrowed from AxisArray (this may break at
 # some future date)
 using Base: ViewIndex, @propagate_inbounds, AbstractCartesianIndex
-@propagate_inbounds Base.view(A::MetaArray, idxs::ViewIndex...) = MetaArray(getmeta(A),view(getcontents(A), idxs...))
-@propagate_inbounds Base.view(A::MetaArray, idxs::Union{ViewIndex,AbstractCartesianIndex}...) = MetaArray(getmeta(A),view(getcontents(A), idxs...))
-@propagate_inbounds Base.view(A::MetaArray, idxs...) = MetaArray(getmeta(A),view(getcontents(A), idxs...))
+@propagate_inbounds Base.view(A::MetaArray, idxs::ViewIndex...) = MetaArray(getmeta(A),view(parent(A), idxs...))
+@propagate_inbounds Base.view(A::MetaArray, idxs::Union{ViewIndex,AbstractCartesianIndex}...) = MetaArray(getmeta(A),view(parent(A), idxs...))
+@propagate_inbounds Base.view(A::MetaArray, idxs...) = MetaArray(getmeta(A),view(parent(A), idxs...))
 
-@propagate_inbounds Base.getindex(x::MetaArray,i::Int...) =
-getindex(getcontents(x),i...)
-@propagate_inbounds Base.getindex(x::MetaArray,i...) =
-metawrap(x,getindex(getcontents(x),i...))
-@propagate_inbounds Base.setindex!(x::MetaArray{<:Any,<:Any,T},v,i...) where T =
-  setindex!(getcontents(x),v,i...)
-@propagate_inbounds function Base.setindex!(x::MetaArray{<:Any,<:Any,T}, v::T,i::Int...) where T
-  setindex!(getcontents(x),v,i...)
-end
+@propagate_inbounds Base.getindex(x::MetaArray, i::Int...) = getindex(parent(x), i...)
+@propagate_inbounds Base.getindex(x::MetaArray, i...) = metawrap(x, getindex(parent(x), i...))
+@propagate_inbounds Base.setindex!(x::MetaArray, v, i...) = (setindex!(parent(x), v, i...); x)
+
 function Base.similar(x::MetaArray,::Type{S},dims::NTuple{<:Any,Int}) where S
-  MetaArray(getmeta(x),similar(getcontents(x),S,dims))
+  MetaArray(getmeta(x), similar(parent(x), S, dims))
 end
 
 # metawrap ensures that returned subarrays are properly wrapped in a meta
@@ -183,8 +184,8 @@ metawrap(x::MetaArray,val::AbstractArray) = MetaArray(getmeta(x),val)
 metawrap(x::MetaArray,val) = error("Unexpected result type $(typeof(val)).")
 
 # maintain stridedness of wrapped array, if present
-Base.strides(x::MetaArray) = strides(getcontents(x))
-Base.stride(x::MetaArray,i::Int) = stride(getcontents(x),i)
+Base.strides(x::MetaArray) = strides(parent(x))
+Base.stride(x::MetaArray, i::Int) = stride(parent(x), i)
 
 # the meta array broadcast style should retain the nested style information for
 # whatever array type the meta array wraps
@@ -222,14 +223,14 @@ meta_broadcasted(metas, result) = MetaArray(reduce(combine,metas), result)
 
 meta_(::NoMetaData,x) = x
 meta_(meta,x) = MetaArray(meta,x)
-getcontents_(x) = x
-getcontents_(x::MetaArray) = getcontents(x)
+maybeparent_(x) = x
+maybeparent_(x::MetaArray) = parent(x)
 getmeta_(x) = NoMetaData()
 getmeta_(x::MetaArray) = getmeta(x)
 
 # broadcasted:
 function Base.Broadcast.broadcasted(::MetaArrayStyle{S}, f, xs...) where S
-  bc = Broadcast.broadcasted(S(),f,getcontents_.(xs)...)
+  bc = Broadcast.broadcasted(S(), f, maybeparent_.(xs)...)
   meta_broadcasted(getmeta_.(xs), bc)
 end
 
@@ -242,7 +243,7 @@ function Base.Broadcast.instantiate(bc::Broadcast.Broadcasted{M}) where
   # simplify
   bc_ = Broadcast.flatten(bc)
   # instantiate the nested broadcast (that the meta array wraps)
-  bc_nested = Broadcast.Broadcasted{S}(bc_.f, getcontents_.(bc_.args))
+  bc_nested = Broadcast.Broadcasted{S}(bc_.f, maybeparent_.(bc_.args))
   inst = Broadcast.instantiate(bc_nested)
   # extract and combine the meta data
   meta = reduce(combine,getmeta_.(bc_.args))
@@ -265,7 +266,7 @@ function Base.copyto!(dest::AbstractArray,
 end
 
 function Base.copyto!(dest::MetaArray, bc::Broadcast.Broadcasted{Nothing})
-  copyto!(getcontents(dest),bc)
+  copyto!(parent(dest),bc)
 end
 
 # copy:
