@@ -25,7 +25,7 @@ julia> z.val1
 A `MetaArray` has the same array behavior, broadcasting behavior and strided
 array behavior as the wrapped array, while maintaining the metadata. All meta
 data is merged using `metamerge` (which defaults to the behavior of `merge`).
-You can get the wrapped array using `getcontents` and the metadata tuple
+You can get the wrapped array using `parent` and the metadata tuple
 using `getmeta`.
 
 To implement further methods which support maintaining meta-data you can
@@ -35,7 +35,7 @@ For example
 
 ```julia
 mymethod(x::MetaArray{<:MyArrayType},y::MetaArray{<:MyArrayType}) =
-    meta(mymethod(getcontents(x),getcontents(y)),
+    meta(mymethod(parent(x),parent(y)),
         MetaArrays.combine(getmeta(x),getmeta(y)))
 ```
 
