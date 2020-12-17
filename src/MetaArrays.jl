@@ -50,7 +50,7 @@ function Base.one(x::MetaArray)
 end
 
 """
-    MetaArray{A}(array,meta::A)
+    MetaArray(meta::A, array)
 
 Create a meta array with custom metadata type `A`.
 
@@ -58,19 +58,19 @@ Normally it's recommended that you use `meta`; only use a custom meta-data
 type if you plan to have a method specialize on the second type argument of
 the MetaArray.
 """
-function MetaArray(meta::M,data::A) where {M,T,N,A<:AbstractArray{T,N}}
-  MetaArray{A,M,T,N}(meta,data)
+function MetaArray(meta::M,data::A) where {M,A<:AbstractArray}
+  MetaArray{A,M,eltype(A),ndims(A)}(meta,data)
 end
 function MetaArray(meta::M,data::MetaArray) where M
   MetaArray(combine(meta,getmeta(data)),getcontents(data))
 end
 
 """
-    meta(array;kwds...)
+    meta(array; kwds...)
 
 Wrap the array as a `MetaArray`, storing the given keyword values.
 """
-meta(data::AbstractArray;meta...) = MetaArray(meta.data,data)
+meta(data::AbstractArray; meta...) = MetaArray(values(meta), data)
 
 Base.getproperty(x::MetaArray,name::Symbol) = getproperty(getmeta(x),name)
 
@@ -99,9 +99,17 @@ a meta array of `T`.
 """
 const MetaUnion{T} = Union{MetaArray{<:T},T}
 
-function Base.show(io::IO,::MIME"text/plain",x::MetaArray) where M
+function Base.show(io::IO, ::MIME"text/plain", x::MetaArray)
   print(io,"MetaArray of ")
   show(io, "text/plain", getcontents(x))
+end
+
+function Base.showarg(io::IO, x::MetaArray, toplevel)
+  !toplevel && print(io, "::")
+  print(io, "MetaArray(")
+  Base.showarg(io, getcontents(x), false)
+  print(io, ", ", keys(getmeta(x)))
+  print(io, ")")
 end
 
 struct UnknownMerge{A,B} end

@@ -248,4 +248,18 @@ testunion(x) = :notrange
     @test all(zero(x) .== 0)
     @test all(one(x) .== 1)
   end
+
+  @testset "summary" begin
+      iobuf = IOBuffer()
+      a = zeros(3,3)
+
+      Base.showarg(iobuf, a, false)
+      sparent = String(take!(iobuf))
+
+      for kws in [(val = 4,), (a = 3, b = 5)]
+          b = meta(a; kws...);
+          summary(iobuf, b)
+          @test String(take!(iobuf)) == "3×3 MetaArray($sparent, $(keys(kws)))"
+      end
+  end
 end
