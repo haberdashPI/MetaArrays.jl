@@ -105,15 +105,16 @@ a meta array of `T`.
 """
 const MetaUnion{T} = Union{MetaArray{<:T},T}
 
-function Base.show(io::IO, ::MIME"text/plain", x::MetaArray)
-  print(io,"MetaArray of ")
-  show(io, "text/plain", parent(x))
+function Base.show(io::IO, ::MIME"text/plain", x::MetaArray{<:AbstractRange})
+  print(io,"MetaArray(")
+  show(io, parent(x))
+  print(io, ", ", keys(getmeta(x)))
+  print(io, ")")
 end
 
 function Base.showarg(io::IO, x::MetaArray, toplevel)
-  !toplevel && print(io, "::")
   print(io, "MetaArray(")
-  Base.showarg(io, getcontents(x), false)
+  Base.showarg(io, parent(x), false)
   print(io, ", ", keys(getmeta(x)))
   print(io, ")")
 end
@@ -163,6 +164,8 @@ combine(x,::NoMetaData) = x
 combine(::NoMetaData,x) = x
 combine(::NoMetaData,::NoMetaData) = NoMetaData()
 MetaArray(meta::NoMetaData,data::AbstractArray) = error("Unexpected missing meta data")
+# Needed for ambiguity resolution
+MetaArray(meta::NoMetaData,data::MetaArray) = error("Unexpected missing meta data")
 
 # match array behavior of wrapped array (maintaining the metdata)
 Base.size(x::MetaArray) = size(parent(x))

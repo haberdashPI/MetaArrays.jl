@@ -42,6 +42,11 @@ testunion(x) = :notrange
 
 @testset "MetaArrays" begin
 
+  @testset "Constructors" begin
+      @test_throws ErrorException MetaArray(MetaArrays.NoMetaData(), rand(2,2))
+      @test_throws ErrorException MetaArray(MetaArrays.NoMetaData(), meta(rand(2,2), a = 3))
+  end
+
   @testset "MetaArray handles standard array operations" begin
     data = collect(1:10)
     x = meta(data,val=1)
@@ -249,8 +254,9 @@ testunion(x) = :notrange
   end
 
   @testset "Proper MetaArray display" begin
-    expected = "MetaArray of 1:10"
-    x = meta(1:10,val=1)
+    r = 1:10
+    x = meta(r,val=1)
+    expected = "MetaArray($(repr(r)), (:val,))"
     iobuf = IOBuffer()
     display(TextDisplay(iobuf), x)
     @test String(take!(iobuf)) == expected
