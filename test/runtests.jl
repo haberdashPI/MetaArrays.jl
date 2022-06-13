@@ -226,6 +226,11 @@ testunion(x) = :notrange
     @test getmeta(x) isa NamedTuple
   end
 
+  @testset "type-stability of combine" begin
+    m = (; a = 1);
+    @test (@inferred MetaArrays.combine(m, m)) == m
+  end
+
   @testset "Appropriate conversion" begin
     x = meta(1:10,val=1)
 
