@@ -257,7 +257,7 @@ testunion(x) = :notrange
     expected = "MetaArray of 1:10"
     x = meta(1:10,val=1)
     iobuf = IOBuffer()
-    display(TextDisplay(iobuf), x)
+    show(iobuf, "text/plain", x)
     @test String(take!(iobuf)) == expected
   end
 
