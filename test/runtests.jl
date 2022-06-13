@@ -228,7 +228,13 @@ testunion(x) = :notrange
 
   @testset "type-stability of combine" begin
     m = (; a = 1);
-    @test (@inferred MetaArrays.combine(m, m)) == m
+    # This isn't inferred on v1.0
+    x = if VERSION >= v"1.6"
+      @inferred MetaArrays.combine(m, m)
+    else
+      MetaArrays.combine(m, m)
+    end
+    @test x == m
   end
 
   @testset "Appropriate conversion" begin
