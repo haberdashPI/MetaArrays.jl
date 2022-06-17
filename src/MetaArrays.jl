@@ -94,7 +94,7 @@ Return the metadata stored in `MetaArray`
 """
 getmeta(x::MetaArray) = Base.getfield(x,:meta)
 function meta(data::MetaArray;meta...)
-  MetaArray(merge(getmeta(data),meta.data), parent(data))
+  MetaArray(merge(getmeta(data), values(meta)), parent(data))
 end
 
 """
@@ -126,35 +126,33 @@ function metamerge(x::A,y::B) where {A,B}
   x == y ? y : UnknownMerge{A,B}()
 end
 
-function checkmerge(::Nothing,v::UnknownMerge{A,B}) where {A,B}
-  error("Metadata to combine is non-identical ",
+mergeerror_headtext(key) = "The field `$key` has non-identical values across metadata "
+mergeerror_headtext(::Nothing) = "Metadata to combine is non-identical "
+
+throw_mergeerror(A, B, key = nothing) = error(mergeerror_headtext(key),
         "and there is no known way to merge an object of type $A with an",
         " object of type $B. You can fix this by defining ",
         "`MetaArrays.metamerge` for these types.")
-end
-function checkmerge(k,v::UnknownMerge{A,B}) where {A,B}
-  error("The field `$k` has non-identical values across metadata ",
-        "and there is no known way to merge non-identical objects of type $A with an",
-        " object of type $B. You can fix this by defining ",
-        "`MetaArrays.metamerge` for these types.")
-end
-checkmerge(k,v) = nothing
 
 # TOOD: file an issue with julia about mis-behavior of `merge`.
-function combine(x,y)
-  result = metamerge(x,y)
-  checkmerge(nothing,result)
-  result
+function combine(x, y)
+  x_ = metamerge(x, y)
+  x_ isa UnknownMerge && throw_mergeerror(typeof(x), typeof(y))
+  x_
 end
-function combine(x::NamedTuple,y::NamedTuple)
-  result = combine_(pairs(x),iterate(pairs(x)),y)
-  for (k,v) in pairs(result); checkmerge(k,v); end
+function combine(x::NamedTuple, y::NamedTuple)
+  combine_(pairs(x), iterate(pairs(x)), y)
+end
 
-  result
-end
-combine_(x, ::Nothing, result) = result
-function combine_(x, ((key,val),state), result)
-  newval = haskey(result,key) ? metamerge(val,result[key]) : val
+@inline combine_(x, ::Nothing, result) = result
+@inline function combine_(x, ((key,val),state), result)
+  newval = if haskey(result, key)
+    x_ = metamerge(val, result[key])
+    x_ isa UnknownMerge && throw_mergeerror(typeof(val), typeof(result[key]), key)
+    x_
+  else
+    val
+  end
   entry = NamedTuple{(key,)}((newval,))
   combine_(x, iterate(x,state), merge(result,entry))
 end

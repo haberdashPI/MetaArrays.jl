@@ -1,0 +1,12 @@
+[deps]
+AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
+OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+
+[compat]
+AxisArrays = "0.4"
+OffsetArrays = "1"
+StaticArrays = "1"
+Unitful = "1"

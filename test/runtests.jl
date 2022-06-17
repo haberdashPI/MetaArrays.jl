@@ -231,6 +231,17 @@ testunion(x) = :notrange
     @test getmeta(x) isa NamedTuple
   end
 
+  @testset "type-stability of combine" begin
+    m = (; a = 1);
+    # This isn't inferred on v1.0
+    x = if VERSION >= v"1.6"
+      @inferred MetaArrays.combine(m, m)
+    else
+      MetaArrays.combine(m, m)
+    end
+    @test x == m
+  end
+
   @testset "Appropriate conversion" begin
     x = meta(1:10,val=1)
 
@@ -258,7 +269,7 @@ testunion(x) = :notrange
     x = meta(r,val=1)
     expected = "MetaArray($(repr(r)), (:val,))"
     iobuf = IOBuffer()
-    display(TextDisplay(iobuf), x)
+    show(iobuf, "text/plain", x)
     @test String(take!(iobuf)) == expected
   end
 
